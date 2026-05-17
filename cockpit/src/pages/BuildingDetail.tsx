@@ -32,7 +32,7 @@ import {
 } from "../api";
 import { SyntheticBadge, type SyntheticMode } from "../components/SyntheticBadge";
 
-type Tab = "overview" | "energy" | "pledges" | "drs" | "lbrs" | "ops" | "settlement" | "roof";
+type Tab = "overview" | "energy" | "pledges" | "drs" | "lbrs" | "ops" | "settlement" | "roof" | "stakeholders";
 
 type Props = {
   project: ProjectedBuilding;
@@ -50,7 +50,10 @@ const tabs: Array<{ id: Tab; label: string }> = [
   { id: "ops", label: "Ops" },
   { id: "settlement", label: "Settlement" },
   { id: "roof", label: "Roof" },
+  { id: "stakeholders", label: "Stakeholders" },
 ];
+
+const defaultTab: Tab = "overview";
 
 const gateLabels: Array<{ key: string; label: string }> = [
   { key: "hasPrepaidFunds", label: "Prepaid committed" },
@@ -62,7 +65,7 @@ const gateLabels: Array<{ key: string; label: string }> = [
 ];
 
 export function BuildingDetail({ project, token, syntheticMode, onProjectChange }: Props) {
-  const [activeTab, setActiveTab] = useState<Tab>("overview");
+  const [activeTab, setActiveTab] = useState<Tab>(() => readTabRoute() ?? defaultTab);
   const [sourceMode, setSourceMode] = useState<"synthetic" | "measured" | "both">("both");
   const [today, setToday] = useState<EnergyToday | null>(null);
   const [series, setSeries] = useState<EnergyReading[]>([]);
@@ -112,6 +115,20 @@ export function BuildingDetail({ project, token, syntheticMode, onProjectChange 
     };
   }, [project.project.id, token]);
 
+  useEffect(() => {
+    function syncTabRoute() {
+      setActiveTab(readTabRoute() ?? defaultTab);
+    }
+
+    syncTabRoute();
+    globalThis.addEventListener?.("hashchange", syncTabRoute);
+    globalThis.addEventListener?.("popstate", syncTabRoute);
+    return () => {
+      globalThis.removeEventListener?.("hashchange", syncTabRoute);
+      globalThis.removeEventListener?.("popstate", syncTabRoute);
+    };
+  }, []);
+
   const filteredSeries = useMemo(() => {
     if (sourceMode === "both") return series;
     return series.filter((reading) => reading.source === sourceMode);
@@ -159,6 +176,11 @@ export function BuildingDetail({ project, token, syntheticMode, onProjectChange 
     }
   }
 
+  function selectTab(nextTab: Tab) {
+    setActiveTab(nextTab);
+    writeTabRoute(nextTab);
+  }
+
   return (
     <article className="detail-shell">
       <div className="detail-header">
@@ -175,7 +197,17 @@ export function BuildingDetail({ project, token, syntheticMode, onProjectChange 
 
       <div className="tab-strip" role="tablist" aria-label="Building detail tabs">
         {tabs.map((tab) => (
-          <button key={tab.id} className={activeTab === tab.id ? "active" : ""} onClick={() => setActiveTab(tab.id)} type="button">
+          <button
+            key={tab.id}
+            aria-controls={`building-tab-${tab.id}`}
+            aria-selected={activeTab === tab.id}
+            className={activeTab === tab.id ? "active" : ""}
+            data-permalink={`#${tab.id}`}
+            id={`building-tab-trigger-${tab.id}`}
+            onClick={() => selectTab(tab.id)}
+            role="tab"
+            type="button"
+          >
             {tab.label}
           </button>
         ))}
@@ -185,7 +217,7 @@ export function BuildingDetail({ project, token, syntheticMode, onProjectChange 
       {error && <div className="notice error">{error}</div>}
 
       {activeTab === "overview" && (
-        <>
+        <div id="building-tab-overview" role="tabpanel" aria-labelledby="building-tab-trigger-overview">
           <ImmersiveProjectHero project={project} mode="building_owner" />
           <section className="detail-grid">
           <MetricCard label="Pledged total" value={kes(project.project.prepaidCommittedKes)} />
@@ -217,11 +249,11 @@ export function BuildingDetail({ project, token, syntheticMode, onProjectChange 
             </div>
           </div>
         </section>
-        </>
+        </div>
       )}
 
       {activeTab === "energy" && (
-        <>
+        <div id="building-tab-energy" role="tabpanel" aria-labelledby="building-tab-trigger-energy">
           <ImmersiveEnergyHero project={project} energyToday={today} variant="building" />
           <section className="detail-grid two">
           <ChartPanel title="24h energy profile" source={source} mode={syntheticMode}>
@@ -249,11 +281,11 @@ export function BuildingDetail({ project, token, syntheticMode, onProjectChange 
             </ResponsiveContainer>
           </ChartPanel>
         </section>
-        </>
+        </div>
       )}
 
       {activeTab === "pledges" && (
-        <section className="panel">
+        <section className="panel" id="building-tab-pledges" role="tabpanel" aria-labelledby="building-tab-trigger-pledges">
           <p className="eyebrow">Pledge history</p>
           <h2>Resident demand backing this deployment</h2>
           <DataTable
@@ -270,7 +302,7 @@ export function BuildingDetail({ project, token, syntheticMode, onProjectChange 
       )}
 
       {activeTab === "drs" && (
-        <>
+        <div id="building-tab-drs" role="tabpanel" aria-labelledby="building-tab-trigger-drs">
           <ImmersiveProjectHero project={project} mode="provider" />
           <section className="detail-grid two">
           <div className="panel">
@@ -337,11 +369,11 @@ export function BuildingDetail({ project, token, syntheticMode, onProjectChange 
             </ResponsiveContainer>
           </ChartPanel>
         </section>
-        </>
+        </div>
       )}
 
       {activeTab === "lbrs" && (
-        <>
+        <div id="building-tab-lbrs" role="tabpanel" aria-labelledby="building-tab-trigger-lbrs">
           <ImmersiveProjectHero project={project} mode="lbrs" />
           <section className="detail-grid two">
           <div className="panel">
@@ -400,11 +432,11 @@ export function BuildingDetail({ project, token, syntheticMode, onProjectChange 
             </p>
           </div>
         </section>
-        </>
+        </div>
       )}
 
       {activeTab === "ops" && (
-        <section className="detail-grid two">
+        <section className="detail-grid two" id="building-tab-ops" role="tabpanel" aria-labelledby="building-tab-trigger-ops">
           <div className="panel">
             <p className="eyebrow">Imported scenario operations</p>
             <h2>Prototype workflow status</h2>
@@ -440,7 +472,7 @@ export function BuildingDetail({ project, token, syntheticMode, onProjectChange 
       )}
 
       {activeTab === "settlement" && (
-        <section className="detail-grid two">
+        <section className="detail-grid two" id="building-tab-settlement" role="tabpanel" aria-labelledby="building-tab-trigger-settlement">
           <div className="panel">
             <div className="row">
               <div>
@@ -475,7 +507,7 @@ export function BuildingDetail({ project, token, syntheticMode, onProjectChange 
       )}
 
       {activeTab === "roof" && (
-        <section className="detail-grid two">
+        <section className="detail-grid two" id="building-tab-roof" role="tabpanel" aria-labelledby="building-tab-trigger-roof">
           <div className="panel">
             <p className="eyebrow">Roof polygon</p>
             <h2>{building.roofAreaM2 ? `${Math.round(building.roofAreaM2).toLocaleString()} m²` : "Area unavailable"}</h2>
@@ -495,6 +527,30 @@ export function BuildingDetail({ project, token, syntheticMode, onProjectChange 
             <div className="settlement-row">
               <span>Longitude</span>
               <strong>{building.lon ?? "—"}</strong>
+            </div>
+            <div className="settlement-row">
+              <span>Units</span>
+              <strong>{building.unitCount ?? project.project.units}</strong>
+            </div>
+          </div>
+        </section>
+      )}
+
+      {activeTab === "stakeholders" && (
+        <section className="detail-grid two" id="building-tab-stakeholders" role="tabpanel" aria-labelledby="building-tab-trigger-stakeholders">
+          <div className="panel">
+            <p className="eyebrow">Stakeholders</p>
+            <h2>Counterparty directory</h2>
+            <p className="lede">
+              Owner, resident, provider, electrician, and financier records for this building resolve through the operations directory.
+            </p>
+          </div>
+          <div className="panel">
+            <p className="eyebrow">Current roster</p>
+            <h2>{project.project.name}</h2>
+            <div className="settlement-row">
+              <span>Operational workflows</span>
+              <strong>{project.operationalWorkflows.length}</strong>
             </div>
             <div className="settlement-row">
               <span>Units</span>
@@ -613,6 +669,18 @@ function statusClass(item: OperationalWorkflowSnapshot) {
   if (item.status === "ready") return "good";
   if (item.status === "blocked") return "bad";
   return "";
+}
+
+function readTabRoute(): Tab | null {
+  const hash = globalThis.location?.hash.replace("#", "");
+  return tabs.some((tab) => tab.id === hash) ? (hash as Tab) : null;
+}
+
+function writeTabRoute(tab: Tab) {
+  if (!globalThis.location || !globalThis.history) return;
+  const next = new URL(globalThis.location.href);
+  next.hash = tab;
+  globalThis.history.pushState(null, "", next);
 }
 
 function kes(value: number) {
