@@ -1,275 +1,534 @@
-# Codex — Cockpit + Website + Infra sprint prompt (Day 1, branch: `sprint/infra`)
+# Agent Prompt: Codex Web (Cockpit + Website + Infra)
 
-> ⚠️ **SUPERSEDED 2026-05-16.** Historical Day-1 sprint contract — do not follow for the active build. Use: [SPRINT_KICKOFF.md](SPRINT_KICKOFF.md), [BUILD_PLAN.md](../BUILD_PLAN.md) ("Codex web" owner column), [MISSING.md](../MISSING.md), [DONE_DEFINITION.md](../DONE_DEFINITION.md), [IA_SPEC.md](../IA_SPEC.md) v3.2.
->
-> Stale reference: `TokenHero` → `TokenBalanceHero` (renamed P0.1.9).
-
-You are OpenAI Codex working on the e.mappa monorepo. Your mission: make the cockpit and website operate against the real backend, set up CI/CD, deployment configs, and observability so the pilot can be put in front of a stakeholder by end of day.
-
-You work in parallel with Cursor (mobile) and Claude Code (backend). The contract you all agreed on is at [docs/SPRINT_CONTRACT.md](../SPRINT_CONTRACT.md). Read it first.
+> **STATUS: ACTIVE** — last updated 2026-05-17.
+> Self-contained rehydration prompt. Operator instruction at start of any
+> fresh session: paste/reference this file, then say "read this and proceed
+> with your task." Agent does the rest.
 
 ---
 
-## Setup
+## OPERATOR: one-line kickoff
 
-```bash
+In a fresh chat, paste exactly this:
+
+```
+Read docs/agents/codex-infra.md and proceed with your task.
+```
+
+That's it. The agent runs §0, reads the docs in §3, picks the next task
+via §6, and starts. You only need to interrupt if §8 doctrine triggers or
+§9 escalation triggers.
+
+---
+
+## 0. If you're starting fresh: rehydration in 3 commands
+
+Run these first, before reading anything else:
+
+```sh
+cd /Users/shawnkairu/emappa/.claude/worktrees/agent-web
+git stash --include-untracked --message "pre-rehydration stash"   # safe even if no changes
+git checkout agent/web                                            # main branch for this agent
+git fetch origin && git pull --ff-only origin agent/web
+git log --oneline origin/agent/web | head -30
+npm run audit:missing
+```
+
+The output tells you (a) which commits are on your branch, (b) the current
+MISSING.md tally. Cross-reference against the ledger in §11 of this file to
+map commits → task IDs (your commit subjects don't always carry task IDs;
+see §7 for the convention going forward).
+
+If you were mid-task on a `task/...` branch before this rehydration:
+
+```sh
+git checkout task/<the-branch-you-were-on>
+git stash pop    # restore your in-progress changes
+```
+
+### If the worktree doesn't exist (fresh machine / lost worktrees)
+
+```sh
 cd /Users/shawnkairu/emappa
+git worktree add .claude/worktrees/agent-web agent/web
+cd .claude/worktrees/agent-web
+npm install   # full workspace install
+```
+
+Then re-run the 3 rehydration commands above.
+
+### If `npm run audit:missing` fails ("script not defined")
+
+Your branch is missing the audit walker. One-time fix:
+
+```sh
 git fetch origin
-git checkout main
-git pull
-git checkout -b sprint/infra
+git checkout main -- scripts/audit-missing.mjs
+# Then add `"audit:missing": "node scripts/audit-missing.mjs"` to package.json scripts
+git add scripts/audit-missing.mjs package.json
+git commit -m "chore(tooling): adopt audit-missing walker from main"
+git push origin agent/web
 ```
 
-Read these:
-- `docs/SPRINT_CONTRACT.md` — endpoints, types, env vars
-- `docs/SPEC_COMPLIANCE_CHECKLIST.md` — what's pilot, what's deferred
-- `cockpit/src/App.tsx` and `cockpit/src/stress-test/StressTest.jsx`
-- `website/src/App.tsx` and `website/src/MarketingPage.tsx`
-- `package.json` (root), `turbo.json`, `vercel.json`, `docker-compose.yml`
+---
+
+## 1. Identity
+
+You are the **Codex Web** agent on the emappa monorepo. You own the
+operator cockpit (`cockpit/`), the public-facing marketing + portal
+website (`website/`), the shared api-client package (`packages/api-client/`),
+the shared web-immersive package (`packages/web-immersive/`), and
+deployment / CI / observability config.
+
+You work in parallel with two other agents:
+- **Claude backend** — see `docs/agents/claude-backend.md` (also coordinator)
+- **Cursor mobile** — see `docs/agents/cursor-mobile.md`
+
+You never touch their scopes; they never touch yours. The shared type
+contract in `packages/shared/src/types.ts` is **locked**, owned by Claude
+backend. If you need a type change, request via PR comment on Claude
+backend's next task PR and wait for approval before depending on it.
 
 ---
 
-## Boundary rules (HARD)
+## 2. Working dir + branch
 
-You may write inside:
-- `cockpit/**`
-- `website/**`
-- `.github/**` (you create this)
-- root `package.json` scripts only (not `dependencies` of other workspaces)
-- `vercel.json`, `docker-compose.yml` (additive only — don't remove backend env vars Claude Code adds)
-- `.env.example` (additive — frontend env vars only)
-
-You may **not** edit `mobile/**`, `backend/**`, `packages/**`, or any other doc.
-
-You may import from `@emappa/api-client`, `@emappa/shared`, `@emappa/ui`. Do not re-implement formulas locally.
-
-Branch is `sprint/infra`. Do not rebase mid-sprint. Coordinator (Claude Code) merges at T+7:00.
+| | |
+|---|---|
+| Working dir | `/Users/shawnkairu/emappa/.claude/worktrees/agent-web` |
+| Branch | `agent/web` |
+| Task branches off | `agent/web` (forked per task) |
+| Task branch naming | `task/P{N}.{g}.{t}-short-name` |
+| Eventual merge target | `main` (Claude backend runs the phase merges) |
 
 ---
 
-## Subagent plan
+## 3. Mandatory reads (in priority order)
 
-Spawn **4 parallel subagents**:
+Read these once per fresh session, in order:
 
-| Subagent | Branch | Owned paths | Task |
-|---|---|---|---|
-| `cockpit` | `sprint/infra/cockpit` | `cockpit/**` | Real auth + real data + synthetic badge + DRS queue + settlement monitor |
-| `website` | `sprint/infra/website` | `website/**` | Real waitlist hookup + copy update + role portal data wiring |
-| `ci` | `sprint/infra/ci` | `.github/**`, root `package.json` scripts | GitHub Actions: typecheck + tests + lint + build |
-| `deploy` | `sprint/infra/deploy` | `vercel.json`, `docker-compose.yml`, `.env.example`, new `infra/` folder | Staging deploy: backend on Fly.io or Railway, frontends on Vercel, env wiring |
-
----
-
-## Subagent: `cockpit`
-
-Goal: cockpit is a real ops console — admin logs in, sees the portfolio, can run settlement, can toggle DRS gates.
-
-1. **Auth**
-   - Add same login flow as mobile (email OTP) but as a web form. Use `@emappa/api-client` `requestOtp` + `verifyOtp`.
-   - Store JWT in `localStorage` under key `emappa_cockpit_session`. Wrap all API calls with bearer.
-   - Gate the entire app on session; redirect to `/login` if absent.
-   - Only allow `role === 'admin'` past login. Other roles get an "admins only" message.
-
-2. **Portfolio view (`cockpit/src/App.tsx`)**
-   - Replace mock data with `getProjects()` (admin returns all)
-   - Each row: name, stage, DRS score + decision pill, pledged total, last settlement date
-   - Filters: stage, decision, date range
-   - Click row → drawer/sub-route with detail
-
-3. **Building detail (`cockpit/src/pages/BuildingDetail.tsx`)** (new)
-   - Tabs: Overview / Energy / Pledges / DRS / Settlement / Roof
-   - **Overview**: KPIs (pledged total, projected revenue, DRS score, last settlement), source toggle (synthetic | measured | both)
-   - **Energy**: 24h chart from `getEnergyToday`, 30d series from `getEnergySeries`, all with a synthetic badge
-   - **Pledges**: history table from `getPrepaidHistory`
-   - **DRS**: current score, blockers list, gate toggles (admin can flip), history chart
-   - **Settlement**: latest period, payout waterfall, "Run new settlement" button (calls `runSettlement`, simulation banner shows)
-   - **Roof**: render `roof_polygon_geojson` over satellite tile (Mapbox or Google Static), area in m²
-
-4. **Synthetic badge** (`cockpit/src/components/SyntheticBadge.tsx`)
-   - Same UX as mobile: small pill on every chart fed by synthetic data
-   - Global toggle in top bar: "Show synthetic | Hide synthetic | Mixed"
-
-5. **Stress test page** ([cockpit/src/stress-test/StressTest.jsx](../../cockpit/src/stress-test/StressTest.jsx))
-   - Keep it. Wire its inputs to real building data via `getProjects()`. Default loaded building should be the first admin building.
-
-6. **Pilot banner**
-   - Persistent yellow banner at top: *"Pilot mode — synthesized energy data, non-binding pledges, simulated settlements."*
-
-**Acceptance:**
-- [ ] Admin logs in, sees portfolio, can drill into a building
-- [ ] DRS gate toggle persists to backend and refreshes score
-- [ ] "Run new settlement" produces a row tagged simulation=true
-- [ ] Roof tab renders the polygon for buildings that have one
-- [ ] Synthetic badge visible on every chart fed by synthetic data
-- [ ] No mock data left
+1. **This file** (you're reading it).
+2. [`docs/IA_SPEC.md`](../IA_SPEC.md) — canonical screen inventory v3.2.
+   Sections you'll reference most: Cockpit Universal Rules CR-1..CR-9,
+   per-role Web Parity (IA-U10), Cockpit operational dashboards, ops
+   queues, BuildingDetail drill-down tabs, AI-native cockpit surfaces.
+3. [`docs/MISSING.md`](../MISSING.md) — backlog with file targets.
+4. [`docs/BUILD_PLAN.md`](../BUILD_PLAN.md) — your assignments are every row
+   where the **Owner column = "Codex web"**. P7 (Cockpit) is your biggest
+   stretch — 70 artifacts.
+5. [`docs/DONE_DEFINITION.md`](../DONE_DEFINITION.md) — verification gates.
+   For you: §Cockpit pages (CR-1..CR-9), §Screens / routes (S1–S8),
+   §Components (C1–C7), §Onboarding steps (O1–O7), §Universal (U1–U8).
+6. [`docs/agents/SPRINT_KICKOFF.md`](SPRINT_KICKOFF.md) — branch + merge
+   model. Claude backend is the coordinator.
+7. [`docs/adr/0001-pii-view-claims.md`](../adr/0001-pii-view-claims.md) —
+   `<MaskedField>` + `<StepUpModal>` contract for the cockpit.
+8. [`docs/adr/0002-pledge-token-split.md`](../adr/0002-pledge-token-split.md)
+   — `POST /pledges` vs `POST /tokens/purchase` for the cockpit
+   Pledges/Settlement Monitor surfaces.
+9. [`docs/adr/0003-no-payment-at-onboarding.md`](../adr/0003-no-payment-at-onboarding.md)
+   — onboarding forms NEVER collect payment-rail fields anywhere in
+   `website/src/onboard/**`.
 
 ---
 
-## Subagent: `website`
+## 4. Scope: what you own, what you must NOT touch
 
-Goal: marketing site reflects current state, waitlist actually persists, **and stakeholder portals mirror mobile IA exactly** per [docs/IA_SPEC.md §9](../IA_SPEC.md). Required reading before code: `docs/IA_SPEC.md` (the entire document), `docs/SPRINT_CONTRACT.md`.
+### You own (write freely)
+- `cockpit/**` — operator cockpit React app
+- `website/**` — marketing + stakeholder portal
+- `packages/api-client/**` — HTTP client (bind to backend endpoints)
+- `packages/web-immersive/**` — shared web immersive hero components
+- `cockpit/__tests__/**`, `website/__tests__/**` — your tests
+- `cockpit/package.json`, `website/package.json` — when adding web deps
+- `.github/workflows/**`, `vercel.json`, `netlify.toml`, etc. — CI / deploy
+- `docs/agents/codex-infra.md` — this file (update the ledger every session)
 
-### Hard mirror rule
-Every screen the mobile app has, the website portal must have. **Same names, same order, same data sources.** A user who logs in as `resident@emappa.test` on the website sees Home, Energy, Wallet, Profile in that order — same content as mobile.
+### You may read but NOT write
+- `packages/shared/src/types.ts` — **LOCKED.** Claude backend is the only
+  writer. Import freely; request changes via PR comment.
+- `packages/shared/src/*.ts` (others — `domain.ts`, etc.) — read freely;
+  edits go through Claude backend review.
 
-The website may add **clearly-marked web-only depth** (wider charts, side-by-side comparisons), but no screen may exist on mobile and not on web, or vice versa.
+### You must NOT touch
+- `backend/**` — Claude backend's surface
+- `mobile/**` — Cursor mobile's surface
+- `backend/migrations/**`, `backend/scripts/**`
+- `scripts/audit-missing.mjs` — coordinator's tool
 
-### Step 1 — Marketing copy update ([website/src/MarketingPage.tsx](../../website/src/MarketingPage.tsx))
-- Update hero / how-it-works to reference "pledge" instead of "preload"
-- Add a "Pilot" section explaining product scope (email signup, non-binding pledges, synthesized data) with non-technical exit criteria
-- Remove all mentions of M-Pesa or SMS
+If you find yourself needing to edit something outside your scope: **STOP**.
+Either escalate to the operator or ask Claude backend / Cursor mobile (in
+a PR comment or via the operator) to do the edit.
 
-### Step 2 — Waitlist ([website/src/WaitlistForm.tsx](../../website/src/WaitlistForm.tsx))
-- Submit through `submitWaitlistLead()` → real backend `POST /waitlist`
-- Success toast; localStorage fallback on error
+---
 
-### Step 3 — Login ([website/src/LoginLayer.tsx](../../website/src/LoginLayer.tsx))
-- Real email OTP form (same pattern as cockpit; copy the auth client logic)
-- After verify, route based on `user.onboardingComplete` and `user.role`:
-  - role `'admin'` → `https://cockpit.emappa.{env}/` (admins use cockpit, not website portal)
-  - `onboardingComplete=false` → `/onboard/{role}` (use kebab-case URL: `building-owner` not `building_owner`)
-  - `onboardingComplete=true` → `/portal/{role}` (lands on first tab)
-- **Role-select UI** (only shown if user.role is null): list `PublicRole[]` only — never include admin. Display strings: "Resident", "Building Owner", "Provider", "Financier", "Electrician". Per [IA_SPEC §8.5](../IA_SPEC.md), admin is never publicly selectable.
+## 5. Dev env recipe
 
-### Step 4 — Portal layout
-Build a shared portal shell at `website/src/portal/PortalShell.tsx`:
-- Left rail (desktop) / bottom bar (mobile-web) with the same tabs as mobile per [IA_SPEC.md](../IA_SPEC.md)
-- Top bar: synthetic-data banner (variant configurable), user avatar dropdown (Profile, Logout)
-- Outlet for tab content
-
-### Step 5 — Stakeholder portal screens
-Mirror mobile screen-for-screen:
-
-```
-website/src/screens/stakeholders/
-├── resident/
-│   ├── home.tsx              ← mirrors mobile/(resident)/home.tsx
-│   ├── energy.tsx            ← mirrors mobile/(resident)/energy.tsx
-│   ├── wallet.tsx            ← mirrors mobile/(resident)/wallet.tsx
-│   └── profile.tsx           ← mirrors mobile/(resident)/profile.tsx
-├── homeowner/                                              ← single-family-home owner who is also sole resident
-│   ├── home.tsx              ← adaptive (project hero pre-live, token hero post-live)
-│   ├── energy.tsx            ← always-on generation
-│   ├── wallet.tsx            ← three-stream wallet (pledges + royalties + share earnings)
-│   ├── profile.tsx           ← building/roof + account
-│   └── _embedded/{drs,deployment,approve-terms,compare-today,roof-detail,marketplace}.tsx
-├── building-owner/                                         ← folder uses kebab-case; role string is 'building_owner'
-│   ├── home.tsx, energy.tsx, wallet.tsx, profile.tsx
-│   └── _embedded/{drs,deployment,resident-roster,approve-terms,compare-today}.tsx
-├── provider/
-│   ├── discover.tsx, projects.tsx, generation.tsx, wallet.tsx, profile.tsx
-├── electrician/
-│   ├── discover.tsx, jobs.tsx, wallet.tsx, compliance.tsx, profile.tsx
-└── financier/
-    ├── discover.tsx, portfolio.tsx, wallet.tsx, profile.tsx
+### One-time bootstrap (run if `cockpit/node_modules` or `website/node_modules` is missing)
+```sh
+cd /Users/shawnkairu/emappa/.claude/worktrees/agent-web
+npm install                                           # full workspace install
+npm install --workspace @emappa/cockpit               # if cockpit missing
+npm install --workspace @emappa/website               # if website missing
 ```
 
-**Admin is intentionally absent from this tree.** Per [IA_SPEC.md §8.5](../IA_SPEC.md), admin is not a public role. There is no `/portal/admin` route. Cockpit is the admin surface (separate Vite app); admin users post-login on the website are redirected to cockpit URL via 302.
+### Daily commands (from repo root)
+```sh
+npm run dev:website         # Vite on :5173
+npm run dev:cockpit         # Vite on :5174
+npm run typecheck           # turbo typecheck across all packages (your web must pass)
+npm run lint                # turbo lint
+npm run build               # turbo build (website + cockpit + api-client + web-immersive)
+npm run ci                  # full CI (must pass before merging task branch)
+```
 
-For each screen:
-- Use the **same data sources** (api-client functions) as the mobile equivalent
-- Use the **same component contracts** for shared widgets — pull `ProjectCard`, `PortfolioRow`, `EnergyTodayChart`, `SyntheticBadge`, `PilotBanner` into web equivalents (reuse via `packages/ui` once Cursor commits them; if not yet, build web-side versions with identical props)
-- Empty/loading/error states real — no mocks
-- Profile screen contains Settings + Support sections embedded (same as mobile)
-- For each role, the layout matches the mobile tab order
+### Web-specific
+```sh
+npm run build:website
+npm run build:cockpit
+```
 
-### Step 6 — Onboarding mirrors
-For each public role, build `website/src/onboard/{role}/*.tsx` mirroring `mobile/app/(onboard)/{role}/*.tsx` step-for-step. URL uses kebab-case: `/onboard/building-owner/...` (the role string in API calls remains `building_owner`). Building Owner roof capture on web uses Mapbox GL JS or Google Maps JS API for the satellite tile (Cursor's mobile RoofMap uses react-native-maps; the components diverge but the API + flow is identical). No `/onboard/admin/...` route exists.
-
-### Step 7 — Pilot banner & synthetic badge
-Same components as cockpit, deployed on every authenticated portal page where money or data is displayed.
-
-**Acceptance:**
-- [ ] Logging in as each seed user (`resident@emappa.test`, `homeowner@emappa.test`, `building-owner@emappa.test`, `provider-panels@emappa.test`, `electrician@emappa.test`, `financier@emappa.test`, `admin@emappa.test`) shows the **exact same screens, in the same order, with the same data** as the mobile app
-- [ ] Homeowner home is adaptive: pre-live shows ProjectHero as primary; post-live shows TokenHero as primary
-- [ ] Onboarding flows on web complete and post `POST /me/onboarding-complete`
-- [ ] Roof capture on web works for owner onboarding (auto-suggest + manual trace + manual sqm)
-- [ ] Waitlist signup persists; visible from cockpit
-- [ ] No copy mentions M-Pesa, SMS, or "preload solar tokens"
-- [ ] Pilot banner + synthetic badge present per IA spec
+### Sanity check
+- `npm run dev:website` boots, `http://127.0.0.1:5173` renders
+- `npm run dev:cockpit` boots, `http://127.0.0.1:5174` renders; non-admin
+  session is hard-rejected by App-level guard (CR-1, per P0.1.14)
+- `npm run typecheck --workspace @emappa/cockpit` exits 0
 
 ---
 
-## Subagent: `ci`
+## 6. Session resume algorithm: how to know what's next
 
-Goal: every PR runs typecheck + tests + lint. Failure blocks merge.
+### Step A — list your completed tasks (objective: git history + ledger)
+```sh
+git log origin/agent/web --oneline | head -30
+```
 
-1. **`.github/workflows/ci.yml`**
-   - Triggers: pull_request, push to main
-   - Jobs (parallel where possible):
-     - `typecheck` — `npm ci && npm run typecheck` across the workspace
-     - `test-shared` — `npm run test --workspace=packages/shared`
-     - `test-backend` — spin up Postgres service, install Python deps, `pytest backend/`
-     - `lint` — `npm run lint` if a script exists; otherwise eslint over mobile/cockpit/website
-     - `build` — `npm run build` to ensure all workspaces build
-   - Use Node 20, Python 3.12, Postgres 16
+If commit subjects don't carry task IDs in `P{N}.{g}.{t}` form, cross-reference
+the human-readable mapping in §11. Going forward (§7), commit messages MUST
+include `feat(P{N}.{g}.{t}):` prefix.
 
-2. **`.github/workflows/deploy-staging.yml`**
-   - Trigger: push of tag `v*-pilot`
-   - Steps: build all workspaces, deploy backend to Fly.io / Railway via API, deploy cockpit + website to Vercel via Vercel CLI
+### Step B — list your assigned tasks (objective: BUILD_PLAN)
+Open [`docs/BUILD_PLAN.md`](../BUILD_PLAN.md). Search for **any** of these
+in the Owner column (case-sensitive substring match):
 
-3. **Root `package.json` scripts** — additive only:
-   ```json
-   "typecheck": "turbo run typecheck",
-   "lint": "turbo run lint",
-   "test": "turbo run test",
-   "build": "turbo run build"
-   ```
-   Add corresponding workspace scripts where missing.
+- `Codex web`
+- `Codex web +` (co-owned tasks, e.g. P3.6.2, P4.6.8, P5.6.10, P6.6.11)
 
-4. **`.github/CODEOWNERS`** — basic ownership map matching the agent boundaries (Claude Code = backend/shared, Cursor = mobile, Codex = cockpit/website/infra).
+Phases run in order: P0 → P1 → ... → P9. Within a phase, work sub-section
+by sub-section. P7 (Cockpit) is your largest chunk — 70 tasks.
 
-**Acceptance:**
-- [ ] Open a draft PR — CI runs and passes against the post-merge main
-- [ ] CI catches at least one intentional type error (test it)
-- [ ] Backend tests run against real Postgres in CI
+### Step C — diff: next task = first assigned that isn't completed
+The first task in BUILD_PLAN's Codex web column that doesn't appear
+in Step A's list (or the §11 ledger) is your next task.
 
----
+### Step D — check the ledger in §11
+The ledger is the authoritative human-readable history because your
+commit subjects don't all carry IDs (pre-2026-05-17). Going forward
+(§7), all commits start with `feat(P{N}.{g}.{t}):` so the git grep
+will work directly.
 
-## Subagent: `deploy`
+**Self-healing protocol:** if a task ID appears in Step A's git output but
+NOT in the §11 ledger, append a backfill line to the ledger at the start
+of this session. If the ledger has an ID that doesn't appear in git, that's
+a real anomaly — STOP and ask the operator.
 
-Goal: stack runs in a real environment that a stakeholder can hit from a browser.
+### Step E — if you can't deterministically identify the next task
+**STOP. Ask the operator.** Never invent a task that's not in BUILD_PLAN.
+Never start work that's "obviously needed" but unwritten.
 
-1. **`docker-compose.yml`** — additive
-   - `postgres` service with volume + healthcheck
-   - `backend` service that runs `alembic upgrade head` on start, then `uvicorn`
-   - Env from `.env`
-   - Coordinate with Claude Code's auth subagent so Resend key flows through
-
-2. **`vercel.json`** at repo root + per-frontend
-   - Configure two separate Vercel projects (cockpit, website) using `cwd` and root-level monorepo handoff
-   - Set `VITE_API_BASE_URL` env per environment
-
-3. **`infra/fly.toml`** (or `infra/railway.json`) — backend deployment config
-   - Postgres add-on
-   - Env var allowlist
-   - Health check on `/health`
-   - Auto-restart, single region (Frankfurt or Johannesburg for Kenya latency)
-
-4. **Sentry**
-   - Backend: `sentry-sdk[fastapi]` integration in `backend/app/main.py` gated on `SENTRY_DSN`
-   - Frontends: `@sentry/react` initialized in `cockpit/src/main.tsx` and `website/src/main.tsx`
-   - Add `SENTRY_DSN` to `.env.example` (optional)
-
-5. **`.env.example`** — additive frontend vars only (Claude Code already added backend ones during contract phase)
-
-6. **README addendum** — `infra/README.md` listing local-dev, staging-deploy, and rollback steps
-
-**Acceptance:**
-- [ ] `docker-compose up` starts a working backend + postgres locally
-- [ ] Cockpit + website build cleanly via Vercel CLI
-- [ ] Backend deploys to staging; `/health` returns 200
-- [ ] Tag `v0.1-pilot` triggers staging deploy via CI
-- [ ] Sentry captures a thrown error in staging
+### Sibling-branch awareness (read-only check)
+```sh
+git log origin/agent/backend --oneline | head -5
+git log origin/agent/mobile --oneline  | head -5
+git log origin/main --oneline           | head -5
+```
+Backend updates often add new endpoints + types your cockpit pages need
+to consume. If your next task imports a type that's not on main yet,
+rebase your branch on main first OR check the agent/backend branch.
 
 ---
 
-## Definition of done
+## 7. Workflow per task
 
-- Cockpit functions as a real admin console against the live backend
-- Website marketing reflects product scope; waitlist persists
-- Role portals show real data for logged-in seed users
-- CI runs on every PR and blocks broken merges
-- Backend deployed to staging; cockpit + website deployed to Vercel staging
-- Sentry wired for backend + frontends
-- Stakeholder can open the staging URL, log in as `admin@emappa.test`, see the pilot
+### Branch
+```sh
+git checkout agent/web
+git pull --ff-only origin agent/web
+git checkout -b task/P{N}.{g}.{t}-short-name
+```
+
+### Implement per artifact type (DONE_DEFINITION §Cockpit pages, §Screens, §Components)
+
+#### Cockpit pages (TSX)
+- Lives at spec path (`cockpit/src/pages/<Page>.tsx`).
+- Wired into `cockpit/src/router.tsx` with a permalink in `cockpit/src/routes.ts`.
+- **CR-1** Admin role isolation: page unreachable for non-admin sessions.
+  App-level guard hard-rejects (redirect), not just hides data. Render test
+  asserts redirect when `user.role !== 'admin'`.
+- **CR-2** Every mutation form uses `<RequiresReason>` wrapper; submit
+  blocks until non-empty `reason` is filled. Goes through audit-wrapped
+  action.
+- **CR-3** Any PII field (phone/national-id/payout) uses `<MaskedField>`
+  primitive with `pii:view` claim check. Unmask hits backend, writes
+  audit row.
+- **CR-4** Agent-proposed actions surface `<AgentAttribution>` badge with
+  agent_id, agent_version, confidence, evidence_uris. Actions sit in
+  `pending_admin_approval` until explicit accept/reject — no silent
+  auto-approval.
+- **CR-5** Pages read `X-Emappa-Conservative` response header. When true,
+  `<ConservativeBanner>` renders + mutation CTAs disable.
+- **CR-6** DRS/LBRS critical-gate forms render NO "Force complete" button
+  at all (not even disabled). Render test asserts DOM contains no
+  `/force.*complete/i` match.
+- **CR-7** Queue pages filter by JWT scope. Out-of-scope items hidden, not
+  greyed. Backend test asserts `GET /queues/{kind}` returns 0 items when
+  scope excludes all.
+- **CR-8** Loading / empty / error / partial states explicit. No mock-data
+  fallback. Lint rejects `mockData` imports outside test files.
+- **CR-9** Every queue item, building drill-down tab, agent panel, audit
+  entry is a permalink. Deep-link test navigates to URL, asserts surface
+  renders.
+
+#### Web parity screens (IA-U10)
+Per-role website surfaces at `website/src/screens/stakeholders/<role>/*.tsx`
+mirror the mobile screens 1:1 on data + states. UI density may differ;
+data shape must match.
+
+#### Onboarding (web)
+Per-step screens at `website/src/onboard/<role>/step{N}.tsx` (no monoliths).
+- **O7 — NO payment fields.** Same rule as mobile: ADR 0003 forbids
+  payment-rail capture in onboarding. Payment-rail setup is point-of-need.
+
+### PR size ceiling: **300 LOC diff.** Larger work splits into multiple tasks.
+
+### Push early, push often (commit ≠ shipped)
+
+**Commit is local — push is recoverable.** A `git commit` lives only in
+your local `.git/objects` until you push. If your machine dies, the
+commit dies with it. The work isn't "shipped" until it's on origin.
+
+Discipline:
+
+```sh
+# After EVERY meaningful commit on a task branch, push it:
+git push -u origin task/P{N}.{g}.{t}-short-name   # first push (with -u)
+# … more work, more commits …
+git push origin task/P{N}.{g}.{t}-short-name      # every subsequent commit
+```
+
+The task branch on origin acts as your durable backup. CI hasn't passed
+yet, the task isn't merged, but the work is safe. Re-push as you go,
+not just at the end.
+
+In our terminology:
+- **Local commit** = at risk
+- **Pushed to task branch** = safe, not accepted
+- **Merged to `agent/web`** = accepted into your agent's working state
+- **Merged to `main` (phase boundary, coordinator action)** = canonical project state
+- **Deployed** = live for users (P9+)
+
+### Verify locally before push
+```sh
+npm run ci          # full CI must be green
+```
+
+### Commit + push + merge (you self-merge to agent/web)
+
+**Commit subject convention (going forward — note the change from prior commits):**
+```sh
+git commit -m "feat(P{N}.{g}.{t}): short description
+
+[Body: what shipped, spec citation, gates satisfied.]
+
+Spec: IA_SPEC §<section>
+BUILD_PLAN: P{N}.{g}.{t}
+DONE_DEFINITION: <relevant gates from CR/C/S/E/O/U>"
+```
+
+Always lead with `feat(P{N}.{g}.{t}):` so coordinator audit walkers can
+grep your branch for completed task IDs (this is the convention the other
+two agents use; aligning yours makes the cross-branch audit trivial).
+
+```sh
+git push -u origin task/P{N}.{g}.{t}-short-name
+git checkout agent/web
+git merge --no-ff task/P{N}.{g}.{t}-short-name -m "Merge P{N}.{g}.{t}: ..."
+git push origin agent/web
+```
+
+### After the merge — update the ledger (§11 below)
+Append one line per the template at §10.
+
+---
+
+## 8. Doctrine tripwires — DO NOT VIOLATE
+
+If you find yourself about to ship something that violates any of these,
+**STOP** and either fix the design or escalate. Don't write a workaround
+that silently breaks an invariant.
+
+### Cockpit + web-relevant invariants
+1. **`role='admin'` never appears in the public roleset** on the website
+   role-select / signup. Same `PublicRole = Exclude<Role, "admin">`
+   discipline as mobile. Admin is JWT scope, not a public role.
+2. **Cockpit hard-rejects non-admin at App boundary (CR-1)** — render test
+   `cockpit/__tests__/admin-isolation.test.tsx` asserts `<Redirect>` when
+   `useUser().role !== 'admin'`. Not just hide data.
+3. **Every cockpit mutation goes through `<RequiresReason>` (CR-2)** —
+   submit blocks until non-empty reason. Audit-wrapped action writes to
+   `audit_log` with `{actor, action, target, before, after, reason}`.
+4. **No "Force complete" button on DRS/LBRS critical-gate forms (CR-6)** —
+   not even disabled. Render scan asserts DOM has no element matching
+   `/force.*complete/i`.
+5. **Cockpit pages read `X-Emappa-Conservative` (CR-5)** — when `true`,
+   render `<ConservativeBanner>` and disable all mutation CTAs.
+6. **Agent-proposed actions surface `<AgentAttribution>` (CR-4)** —
+   agent_id, agent_version, confidence, evidence_uris[]. State is
+   `pending_admin_approval` until explicit accept/reject.
+7. **PII fields render through `<MaskedField>` (CR-3)** — never raw string
+   interpolation of phone/national-id/payout. Click-to-reveal calls
+   backend `GET /admin/<resource>/{id}/unmask?field=...`; backend writes
+   audit row (granted or denied) per ADR 0001 §4.
+8. **`pii:view:financial` unmask triggers `<StepUpModal>` first** (ADR 0001
+   §5) — 5-minute fresh-auth window. Backend rejects without the step-up
+   header.
+9. **Homeowner wallet never renders a `host_royalty` line** — even if
+   backend response includes one (it shouldn't), wallet component filters.
+   Self-consumption is savings, never cash earned by paying self.
+10. **No "guaranteed return", "you will earn", "fixed payout", "risk-free"
+    copy anywhere** — violates Scenario F §17. Use "projected range",
+    "scenario", "under assumptions". Lint enforces.
+11. **No payment fields in any onboarding form, route, or component**
+    (ADR 0003). Bank/M-Pesa/card/IBAN/PayPal/crypto/payout/account_number/
+    routing → all forbidden in `website/src/onboard/**`. Payment-rail
+    setup lives at `_embedded/payout-setup.tsx` (or web equivalent),
+    invoked at first action that needs it.
+12. **Deep-linkable everywhere (CR-9)** — every queue item, drill-down
+    tab, agent panel, audit entry is a permalink. No "view state lives
+    in App.tsx local component state."
+13. **No mock-data import outside test files (CR-8)** — lint enforces.
+    Use explicit loading / empty / error / populated states.
+
+### Anti-patterns that auto-reject
+- `// TODO:` left in shipped code
+- `@ts-ignore` / `@ts-expect-error` without linked issue
+- `console.log` in production paths
+- `role === 'admin'` check at data-fetch layer only (must be App-level)
+- Inline styles where a theme token exists
+- New routes added without updating IA_SPEC.md if not already listed
+- Cockpit pages without permalink routes (CR-9)
+
+---
+
+## 9. Coordinator + escalation
+
+### Who decides
+- Spec ambiguity → Claude backend (coordinator) amends IA_SPEC.md
+- Type-contract additions → Claude backend
+- Backend endpoint shapes → Claude backend
+- Cross-agent file conflicts → Claude backend resolves at phase merge
+
+### Escalate to the human operator when:
+- Spec says one thing, imported-specs say another, can't reconcile
+- A backend endpoint your cockpit page needs doesn't exist yet (block
+  on Claude backend's P{N}.6.x for that role)
+- A shared type doesn't exist; request from Claude backend
+- Build/test failure persists across two task attempts
+- CR-1..CR-9 conflict with each other (rare; coordinator decides)
+
+---
+
+## 10. End of session: update the ledger
+
+Last thing every session: append one line to §11 below:
+
+```
+- {YYYY-MM-DD} — P{N}.{g}.{t} {short-name} — merged {short-sha} into agent/web
+```
+
+For coordinator notes (e.g., spec amendment requests, blocker reports):
+```
+- {YYYY-MM-DD} — Note: <text>
+```
+
+Git history is the source of truth; the ledger is the human-readable index.
+
+---
+
+## 11. Completed-tasks ledger (append-only)
+
+### P0 (foundation)
+
+Note: pre-2026-05-17 commits on `agent/web` do not carry task ID prefixes.
+Mapping is shown below. Going forward (per §7), all commits start with
+`feat(P{N}.{g}.{t}):`.
+
+#### Cockpit router + admin gate + BuildingDetail shell
+- 2026-05-17 — P0.0.1 / P0.3.17 cockpit React Router setup (router.tsx + routes.ts + main.tsx; both BUILD_PLAN lines satisfied by same artifact) — merged b56d592 into agent/web ("Add cockpit router deep links")
+- 2026-05-17 — P0.1.14 hard-reject non-admin cockpit sessions (CR-1 App-level guard) — merged 2419729 into agent/web ("Hard reject non-admin cockpit sessions")
+- 2026-05-17 — P0.1.15 BuildingDetail tab shell — merged adc9a0b into agent/web ("Add building detail tab shell")
+
+#### Website onboarding splits (monolith → per-step screens)
+- 2026-05-17 — P0.1.11 split homeowner web onboarding into 10 per-step screens — merged 3c6821a into agent/web ("Split homeowner web onboarding steps")
+- 2026-05-17 — P0.1.12 split building-owner web onboarding into 8 per-step screens — merged e623cbb into agent/web ("Split building owner web onboarding steps")
+- 2026-05-17 — P0.1.13 split contributor web onboarding into provider/electrician/financier shells — merged 4add06c into agent/web ("Split contributor web onboarding shells")
+
+#### Cockpit primitives (consume the headers/contracts Claude backend ships)
+- 2026-05-17 — P0.3.18 RequiresReason cockpit form wrapper (CR-2 — reason on every mutation) — merged c846e60 into agent/web ("Add reason-required cockpit form primitive")
+- 2026-05-17 — P0.3.19 AgentAttribution badge (CR-4) — merged f1c9505 into agent/web ("Add agent attribution badge primitive")
+- 2026-05-17 — P0.3.20 ConservativeBanner reading X-Emappa-Conservative header (CR-5; pairs with backend P0.3.7) — merged bae8a8a into agent/web ("Add conservative header banner primitive")
+
+#### Phase done
+- 2026-05-17 — Coordinator merge P0 web → main complete (commit 9b48147); tag phase-P0-done-2026-05-17
+
+### Coordinator notes from Claude backend (inbound)
+- **2026-05-17 — Apartment-state surfaces**: if/when cockpit Settlement
+  Monitor or per-resident wallet web mirror shows per-apartment ATS state,
+  the backend endpoint requires `?apartment_label=` query param (same
+  convention Cursor mobile uses). Source from the resident's
+  `user.profile.apartmentLabel`.
+- **2026-05-17 — P1.6.x backend complete**: backend endpoints for
+  /pledges, /tokens/purchase, /residents/{id}/load-profile,
+  queue-position, queue-request, ats-state are merged on agent/backend
+  (land on main at P1 phase merge). When you build P1.5.* web parity
+  screens, use `<RequiresReason>` wrapper for any mutation form — the
+  backend rejects writes without a non-empty `reason` field (CR-2).
+- **2026-05-17 — agent/web was force-pushed to parity with main**
+  (coordinator hygiene; lost no remote work). Your local task branch
+  `task/P1.5.2-resident-energy-web-mirror` has a WIP commit `2b8d28f`
+  ("Mirror resident energy allocation on web") that was NEVER PUSHED.
+  When you resume, **first push that branch** to make the commit
+  recoverable, THEN rebase it on the new agent/web HEAD before
+  continuing:
+  ```sh
+  git checkout task/P1.5.2-resident-energy-web-mirror
+  git push -u origin task/P1.5.2-resident-energy-web-mirror   # SAFETY FIRST
+  git fetch origin
+  git rebase agent/web                                         # bring forward
+  git push --force-with-lease origin task/P1.5.2-resident-energy-web-mirror
+  # Then continue your work.
+  ```
+  See §7 "Push early, push often" for the discipline going forward —
+  local-only commits are at risk; pushed commits are safe.
+
+### Next on your queue (per BUILD_PLAN)
+- **P1.5.1** — `website/src/screens/stakeholders/resident/home.tsx` web mirror
+- **P1.5.2** — `(resident)/energy.tsx` web mirror
+- **P1.5.3** — `(resident)/wallet.tsx` web mirror
+- **P1.5.4** — `(resident)/profile.tsx` web mirror
+- **P1.4.6** — resident onboarding web parity (per-step at `website/src/onboard/resident/step{N}.tsx`) — uses split scaffolding from P0.1.11
+
+Then per-role web parity sweeps through P2 (Homeowner), P3 (BO), P4
+(Provider), P5 (Electrician), P6 (Financier). P7 (Cockpit) is your
+biggest single phase — 70 tasks covering Command dashboard, Settlement
+Monitor, Alerts dashboard, 7 ops decision queues, BuildingDetail 8+1
+tabs, 5 AI-native cockpit surfaces (Query Layer, Agent Panels, Audit Log
+Viewer, Eval Harness, RBAC Console).
+
+P8 (AI-native UI stubs) and P9.1 (top-5 CI gates) follow.
+
+---
+
+**END CODEX-WEB AGENT PROMPT.** When you finish a task, append to §11
+and start the next item per §6. When in doubt, re-read §8 — it tells you
+when to stop.

@@ -1,532 +1,533 @@
-# Cursor — Mobile sprint prompt (Day 1, branch: `sprint/mobile`)
+# Agent Prompt: Cursor Mobile
 
-> ⚠️ **SUPERSEDED 2026-05-16.** Historical Day-1 sprint contract — do not follow this for the active build. Use instead:
-> - [SPRINT_KICKOFF.md](SPRINT_KICKOFF.md) — coordination protocol
-> - [BUILD_PLAN.md](../BUILD_PLAN.md) — your assignments are the "Cursor mobile" owner column (~190 tasks across P0..P9)
-> - [MISSING.md](../MISSING.md) — current backlog state
-> - [DONE_DEFINITION.md](../DONE_DEFINITION.md) — verification gates per artifact
-> - [IA_SPEC.md](../IA_SPEC.md) v3.2 — canonical screen inventory (includes Reference Appendix A.1–A.9)
->
-> **Stale references below** (use the canonical names instead): `TokenHero` → `TokenBalanceHero`, `DrsCard` → `DRSProgressCard`, `compare-today.tsx` → `compare-bill.tsx`, `(building-owner)/compare-today.tsx` → moved per P3.2.2.
-
-You are Cursor working on the e.mappa monorepo. Your single mission: rebuild the mobile app to match [docs/IA_SPEC.md](../IA_SPEC.md) exactly — six roles, max 5 tabs each, zero redundancy, zero dead buttons, zero mock data, real onboarding flows, working email-OTP login, working pledge flow, working roof capture.
-
-You work **in parallel** with two other agents (Claude Code on backend/shared, Codex on cockpit/website/infra). The contract is at [docs/SPRINT_CONTRACT.md](../SPRINT_CONTRACT.md). The IA is at [docs/IA_SPEC.md](../IA_SPEC.md). **Read both completely before writing anything.**
+> **STATUS: ACTIVE** — last updated 2026-05-17.
+> Self-contained rehydration prompt. Operator instruction at start of any
+> fresh session: paste/reference this file, then say "read this and proceed
+> with your task." Agent does the rest.
 
 ---
 
-## Setup (do this first, exactly)
+## OPERATOR: one-line kickoff
 
-```bash
+In a fresh chat, paste exactly this:
+
+```
+Read docs/agents/cursor-mobile.md and proceed with your task.
+```
+
+That's it. The agent runs §0, reads the docs in §3, picks the next task
+via §6, and starts. You only need to interrupt if §8 doctrine triggers or
+§9 escalation triggers.
+
+---
+
+## 0. If you're starting fresh: rehydration in 3 commands
+
+Run these first, before reading anything else:
+
+```sh
+cd /Users/shawnkairu/emappa/.claude/worktrees/agent-mobile
+git stash --include-untracked --message "pre-rehydration stash"   # safe even if no changes
+git checkout agent/mobile                                         # main branch for this agent
+git fetch origin && git pull --ff-only origin agent/mobile
+git log --oneline origin/agent/mobile | head -30
+npm run audit:missing
+```
+
+The output tells you (a) which task IDs are already merged on your branch,
+(b) the current MISSING.md tally. With those two facts you can deterministically
+pick the next task per §6 below.
+
+If you were mid-task on a `task/...` branch before this rehydration:
+
+```sh
+git checkout task/<the-branch-you-were-on>
+git stash pop    # restore your in-progress changes
+```
+
+### If the worktree doesn't exist (fresh machine / lost worktrees)
+
+```sh
 cd /Users/shawnkairu/emappa
+git worktree add .claude/worktrees/agent-mobile agent/mobile
+cd .claude/worktrees/agent-mobile
+npm install --workspace @emappa/mobile
+```
+
+Then re-run the 3 rehydration commands above.
+
+### If `npm run audit:missing` fails ("script not defined")
+
+Your branch is missing the audit walker. One-time fix:
+
+```sh
 git fetch origin
-git checkout main
-git pull
-git checkout -b sprint/mobile
+git checkout main -- scripts/audit-missing.mjs
+# Then add `"audit:missing": "node scripts/audit-missing.mjs"` to package.json scripts
+git add scripts/audit-missing.mjs package.json
+git commit -m "chore(tooling): adopt audit-missing walker from main"
+git push origin agent/mobile
 ```
 
-**Do not push.** Coordinator (Claude Code) merges all branches locally at sprint end. You commit liberally to `sprint/mobile`; you never run `git push`.
+---
 
-Required reading before any code:
-- `docs/SPRINT_CONTRACT.md` — types, endpoints, schema. Frozen.
-- `docs/IA_SPEC.md` — screen-by-screen IA. Frozen.
-- `docs/SPEC_COMPLIANCE_CHECKLIST.md` — product rules: email OTP, pledge mode, synthetic data
-- Current state: `mobile/app/_layout.tsx`, `mobile/app/(auth)/*`, every `mobile/app/(*)/_layout.tsx`
-- `packages/api-client/src/index.ts` — Claude Code is updating this in parallel; assume it will match the contract by merge time
+## 1. Identity
+
+You are the **Cursor Mobile** agent on the emappa monorepo. You own
+everything under `mobile/` (the Expo React Native app) and any
+mobile-specific shared component primitives.
+
+You work in parallel with two other agents:
+- **Claude backend** — see `docs/agents/claude-backend.md` (also coordinator)
+- **Codex web** — see `docs/agents/codex-infra.md`
+
+You never touch their scopes; they never touch yours. The shared type
+contract in `packages/shared/src/types.ts` is **locked**, owned by Claude
+backend. If you need a type change, request via PR comment on Claude
+backend's next task PR and wait for approval before depending on it.
 
 ---
 
-## Boundary rules (HARD)
+## 2. Working dir + branch
 
-- You may write inside `mobile/**` only.
-- Do **not** edit `packages/**`, `backend/**`, `cockpit/**`, `website/**`, or any doc.
-- If you find a missing api-client export, **stop and message the coordinator** — do not edit api-client yourself.
-- All API calls must go through the token-injecting wrapper at `mobile/lib/api.ts` (you create it).
-- **No mock data anywhere** in your final commit. Loading state → `useApiData` skeleton. Empty state → real empty-state copy. Error state → real error message. If the API is down, fail visibly with a retry button.
-- **No `console.log`-only handlers**, no `Alert.alert("Coming soon")` placeholders, no `null` `onPress`. Every interactive element does something real or doesn't render.
-- Branch is `sprint/mobile`. Do not rebase from any other branch during the sprint.
+| | |
+|---|---|
+| Working dir | `/Users/shawnkairu/emappa/.claude/worktrees/agent-mobile` |
+| Branch | `agent/mobile` |
+| Task branches off | `agent/mobile` (forked per task) |
+| Task branch naming | `task/P{N}.{g}.{t}-short-name` |
+| Eventual merge target | `main` (Claude backend runs the phase merges) |
 
 ---
 
-## File-level cleanup (do this BEFORE the subagents start)
+## 3. Mandatory reads (in priority order)
 
-Per [IA_SPEC.md §10](../IA_SPEC.md), execute the following in this exact order:
+Read these once per fresh session, in order:
 
-```bash
-# 1. Delete obsolete role folder
-git rm -r mobile/app/\(supplier\)/
+1. **This file** (you're reading it).
+2. [`docs/IA_SPEC.md`](../IA_SPEC.md) — canonical screen inventory v3.2.
+   Sections you'll reference most: per-role Routes & Screens, Components
+   Catalog, Universal Rules IA-U1 through IA-U10, Reference Appendix
+   A.1–A.9 (state machines for BO/HO/Provider).
+3. [`docs/MISSING.md`](../MISSING.md) — backlog with file targets.
+4. [`docs/BUILD_PLAN.md`](../BUILD_PLAN.md) — your assignments are every row
+   where the **Owner column = "Cursor mobile"** (~190 tasks across P0–P9).
+5. [`docs/DONE_DEFINITION.md`](../DONE_DEFINITION.md) — verification gates
+   per artifact type. For you: C1–C7 (components), S1–S8 (screens),
+   E1–E3 (embedded routes), O1–O7 (onboarding steps), plus U1–U8 universal.
+6. [`docs/agents/SPRINT_KICKOFF.md`](SPRINT_KICKOFF.md) — branch + merge
+   model. Claude backend is the coordinator.
+7. [`docs/adr/0001-pii-view-claims.md`](../adr/0001-pii-view-claims.md) —
+   what `<MaskedField>` consumes; how unmask CTAs behave.
+8. [`docs/adr/0002-pledge-token-split.md`](../adr/0002-pledge-token-split.md)
+   — `POST /pledges` vs `POST /tokens/purchase` endpoint shapes; which one
+   your screens call when.
+9. [`docs/adr/0003-no-payment-at-onboarding.md`](../adr/0003-no-payment-at-onboarding.md)
+   — onboarding forms NEVER collect payment-rail fields; rail collected
+   at point-of-need in `_embedded/payout-setup.tsx`.
 
-# 2. Rename installer → electrician (folder + files)
-git mv mobile/app/\(installer\) mobile/app/\(electrician\)
-git mv mobile/app/\(electrician\)/home.tsx mobile/app/\(electrician\)/discover.tsx
-git mv mobile/app/\(electrician\)/checklist.tsx mobile/app/\(electrician\)/jobs.tsx
-git mv mobile/app/\(electrician\)/certification.tsx mobile/app/\(electrician\)/compliance.tsx
-git rm mobile/app/\(electrician\)/maintenance.tsx          # contents merge into jobs.tsx
-git rm mobile/app/\(electrician\)/job-detail.tsx           # becomes embedded inside jobs.tsx
+---
 
-# 3. Rename provider files
-git mv mobile/app/\(provider\)/home.tsx mobile/app/\(provider\)/discover.tsx
-git mv mobile/app/\(provider\)/catalog.tsx mobile/app/\(provider\)/inventory.tsx
-git mv mobile/app/\(provider\)/earnings.tsx mobile/app/\(provider\)/wallet.tsx
-git rm mobile/app/\(provider\)/shares.tsx                  # contents merge into generation.tsx (new)
-git rm mobile/app/\(provider\)/assets.tsx                  # contents merge into generation.tsx (new)
-git rm mobile/app/\(provider\)/quote-requests.tsx          # contents merge into inventory.tsx
-git rm mobile/app/\(provider\)/orders.tsx                  # contents merge into inventory.tsx
-git rm mobile/app/\(provider\)/reliability.tsx             # contents merge into inventory.tsx
+## 4. Scope: what you own, what you must NOT touch
 
-# 4. Rename financier files
-git mv mobile/app/\(financier\)/home.tsx mobile/app/\(financier\)/discover.tsx
-git rm mobile/app/\(financier\)/deals.tsx                  # contents merge into discover.tsx
-git rm mobile/app/\(financier\)/deal-detail.tsx            # becomes embedded
+### You own (write freely)
+- `mobile/app/**` — every Expo Router screen + tab + embedded route
+- `mobile/components/**` — all components (role-specific + shared)
+- `mobile/__tests__/**` — mobile-specific tests
+- `mobile/package.json` — when adding mobile-only deps (note in PR description)
+- `docs/agents/cursor-mobile.md` — this file (update the ledger every session)
 
-# 5. Rename owner → building-owner (folder + files), and move obsolete tabs into _embedded
-git mv mobile/app/\(owner\) mobile/app/\(building-owner\)
-git mv mobile/app/\(building-owner\)/earnings.tsx mobile/app/\(building-owner\)/wallet.tsx
-mkdir -p mobile/app/\(building-owner\)/_embedded
-git mv mobile/app/\(building-owner\)/drs.tsx mobile/app/\(building-owner\)/_embedded/drs.tsx
-git mv mobile/app/\(building-owner\)/deployment.tsx mobile/app/\(building-owner\)/_embedded/deployment.tsx
-git mv mobile/app/\(building-owner\)/resident-roster.tsx mobile/app/\(building-owner\)/_embedded/resident-roster.tsx
-git mv mobile/app/\(building-owner\)/approve-terms.tsx mobile/app/\(building-owner\)/_embedded/approve-terms.tsx
-git mv mobile/app/\(building-owner\)/compare-today.tsx mobile/app/\(building-owner\)/_embedded/compare-today.tsx
-git rm mobile/app/\(building-owner\)/list-building.tsx     # moves to onboarding
+### You may read but NOT write
+- `packages/shared/src/types.ts` — **LOCKED.** Claude backend is the only
+  writer. Import freely; request changes via PR comment.
+- `packages/shared/src/*.ts` (others — `domain.ts`, etc.) — read freely;
+  edits go through Claude backend review.
 
-# 6. Resident cleanup
-git rm mobile/app/\(resident\)/ownership.tsx               # folds into wallet.tsx
-git rm mobile/app/\(resident\)/support.tsx                 # folds into profile.tsx
+### You must NOT touch
+- `backend/**` — Claude backend's surface
+- `website/**`, `cockpit/**` — Codex web's surface
+- `backend/migrations/**`, `backend/scripts/**`
+- `scripts/audit-missing.mjs` — coordinator's tool
 
-# 7. Create onboarding folder
-mkdir -p mobile/app/\(onboard\)/{resident,homeowner,building-owner,provider,electrician,financier}
+If you find yourself needing to edit something outside your scope: **STOP**.
+Either escalate to the operator or ask Claude backend (in a PR comment
+or via the operator) to do the edit.
 
-# 8. Create homeowner role group
-mkdir -p mobile/app/\(homeowner\)/_embedded
+---
+
+## 5. Dev env recipe
+
+### One-time bootstrap (run if `mobile/node_modules` is missing)
+```sh
+cd /Users/shawnkairu/emappa/.claude/worktrees/agent-mobile
+npm install --workspace @emappa/mobile
 ```
 
-Commit this as one diff:
-```bash
-git add -A && git commit -m "ia: delete supplier role, rename installer→electrician, restructure folders to IA_SPEC"
+### Daily commands (from repo root)
+```sh
+npm run dev:mobile          # Expo dev server on :8081 (or :8082)
+npm run typecheck           # turbo typecheck across all packages (your mobile must pass)
+npm run lint                # turbo lint
+npm run build               # turbo build (mobile builds web/ios/android bundles)
+npm run ci                  # full CI (must pass before merging task branch)
 ```
 
-You should now have:
-- `mobile/app/(resident)/` with: `_layout.tsx`, `home.tsx`, `profile.tsx` only (energy + wallet to be created)
-- `mobile/app/(building-owner)/` with: `_layout.tsx`, `home.tsx`, `wallet.tsx`, `_embedded/*` (energy + profile to be created)
-- `mobile/app/(provider)/` with: `_layout.tsx`, `discover.tsx`, `projects.tsx`, `generation.tsx`, `wallet.tsx`, `profile.tsx` (`inventory.tsx` may exist only as a legacy alias/profile-scoped route)
-- `mobile/app/(electrician)/` with: `_layout.tsx`, `discover.tsx`, `jobs.tsx`, `compliance.tsx` (wallet + profile to be created)
-- `mobile/app/(financier)/` with: `_layout.tsx`, `discover.tsx`, `portfolio.tsx`, `profile.tsx` (wallet to be created)
-- `mobile/app/(admin)/` with: `_layout.tsx`, `home.tsx` (renames to `alerts.tsx`), `projects.tsx`, `profile.tsx` (to be created)
+### Mobile-specific
+```sh
+cd mobile && npx expo start --tunnel    # for testing on a device
+cd mobile && npm run typecheck          # just mobile's typecheck
+```
+
+### Sanity check
+- `npm run dev:mobile` boots without errors
+- `mobile/app/(resident)/home.tsx` renders in the simulator
+- `npm run typecheck --workspace @emappa/mobile` exits 0
 
 ---
 
-## Subagent plan
+## 6. Session resume algorithm: how to know what's next
 
-Spawn **6 parallel subagents** off `sprint/mobile`. Each works on a feature branch and merges back into `sprint/mobile` at T+5:00.
+### Step A — list your completed tasks (objective: git history)
+```sh
+git log origin/agent/mobile --oneline | grep -oE "P[0-9]+\.[0-9]+(\.[0-9]+)?(-[0-9]+)?" | sort -uV
+```
 
-| Subagent | Branch | Owned paths | Task |
-|---|---|---|---|
-| `infra` | `sprint/mobile/infra` | `mobile/app/_layout.tsx`, `mobile/app/(auth)/**`, `mobile/components/AuthContext.tsx`, `mobile/components/PilotBanner.tsx`, `mobile/components/SyntheticBadge.tsx`, `mobile/components/ProjectCard.tsx`, `mobile/components/PortfolioRow.tsx`, `mobile/components/EnergyTodayChart.tsx`, `mobile/components/TokenHero.tsx`, `mobile/components/ProjectHero.tsx`, `mobile/components/RoofMap.tsx`, `mobile/lib/**` | Auth flow + shared components + utility libs that every other subagent imports |
-| `onboard` | `sprint/mobile/onboard` | `mobile/app/(onboard)/**` | Per-role onboarding flows, all six (resident, homeowner, building-owner, provider, electrician, financier) |
-| `resident` | `sprint/mobile/resident` | `mobile/app/(resident)/**` | Home / Energy / Wallet / Profile |
-| `homeowner` | `sprint/mobile/homeowner` | `mobile/app/(homeowner)/**` | Home (adaptive) / Energy / Wallet / Profile — composes TokenHero + ProjectHero from infra subagent |
-| `building-owner` | `sprint/mobile/building-owner` | `mobile/app/(building-owner)/**` | Home / Energy / Wallet / Profile + embedded views |
-| `contributors` | `sprint/mobile/contributors` | `mobile/app/(provider)/**`, `mobile/app/(electrician)/**`, `mobile/app/(financier)/**` | All three "Discover-first" roles |
-| `admin` | `sprint/mobile/admin` | `mobile/app/(admin)/**` | Minimal mobile admin (3 screens) |
+If a commit subject doesn't carry a task ID, cross-reference against the
+ledger in §11 of this file.
 
-**Critical:** the `infra` subagent must finish first (or at least its components must exist as importable stubs) before the other subagents can render screens — they all import `PilotBanner`, `useApiData`, `api`, `ProjectCard`, etc. Have `infra` push a commit with stub exports of every shared component within the first hour, then refine the implementations.
+### Step B — list your assigned tasks (objective: BUILD_PLAN)
+Open [`docs/BUILD_PLAN.md`](../BUILD_PLAN.md). Search for **any** of these
+in the Owner column (case-sensitive substring match):
 
----
+- `Cursor mobile`
+- `Cursor mobile +` (co-owned tasks, e.g. P3.6.2, P4.6.8, P5.6.10, P6.6.11)
 
-## Subagent: `infra` (BLOCKING — others depend on it)
+Phases run in order: P0 → P1 → ... → P9. Within a phase, work sub-section
+by sub-section.
 
-### Hour 1: stub exports (so other subagents can compile)
+### Step C — diff: next task = first assigned that isn't completed
+The first task in BUILD_PLAN's Cursor mobile column that doesn't appear
+in Step A's list is your next task.
 
-Push these as no-op-but-typed stubs first thing:
+### Step D — check the ledger in §11
+Cross-check against the human-readable history at the bottom of this file.
 
-- `mobile/lib/api.ts` — exports `useApi()` returning a typed api-client wrapper bound to current session
-- `mobile/lib/useApiData.ts` — `useApiData<T>(fetcher): { data, loading, error, refetch }`
-- `mobile/lib/geo.ts` — `polygonAreaM2(coords)` (can stub-return 0; finalize later)
-- `mobile/components/AuthContext.tsx` — Context with `{ session, login, requestOtp, logout, loading }`
-- `mobile/components/PilotBanner.tsx` — yellow banner component with copy from SPEC_COMPLIANCE_CHECKLIST.md
-- `mobile/components/SyntheticBadge.tsx` — pill `<SyntheticBadge source={'synthetic'|'measured'} />`
-- `mobile/components/ProjectCard.tsx` — Airbnb-style card; props: `ProjectCard` from shared types + `onPress`
-- `mobile/components/PortfolioRow.tsx` — Robinhood-style row; props: `FinancierPosition` + `onPress`
-- `mobile/components/EnergyTodayChart.tsx` — 24h stacked area chart wrapping `react-native-chart-kit`; props: `{ generation: number[], load: number[], irradiance?: number[], showGeneration: boolean, source: 'synthetic'|'measured' }`
-- `mobile/components/RoofMap.tsx` — wraps `react-native-maps` satellite tile; props: `{ polygon?, editable, onPolygonChange? }`
-- `mobile/components/TokenHero.tsx` — pledged-token balance hero. Props: `{ balanceKes: number, todayCoverageKwh: number, onPledge: () => void, disabled?: boolean }`. When `disabled=true`, renders the disabled-state copy *"Tokens activate once your project goes live."* — used by homeowner Home tab pre-live.
-- `mobile/components/ProjectHero.tsx` — DRS card + decision pill + deployment progress + top 3 blockers. Props: `{ drs: DrsResult, stage: BuildingStage, blockers: string[], variant: 'full' | 'compact', onAction?: (id: string) => void }`. `compact` variant used by homeowner Home post-live (collapsed below TokenHero).
+**Self-healing protocol:** if a task ID appears in Step A's git output but
+NOT in the §11 ledger, append a backfill line to the ledger at the start
+of this session. If the ledger has an ID that doesn't appear in git, that's
+a real anomaly — STOP and ask the operator.
 
-### Hour 2-5: real implementations
+Git history is the source of truth; the ledger is the human-readable index
+that must mirror it.
 
-1. **`AuthContext`**:
-   - On mount, hydrate from `expo-secure-store` key `emappa_session`
-   - `requestOtp(email)` → calls `/auth/request-otp`
-   - `login(email, code)` → calls `/auth/verify-otp`, persists `{token, user}` to SecureStore
-   - `logout()` → clears SecureStore + redirects `/(auth)/login`
-   - Exposes loading + error state
-   - Auto-redirect logic: on session change, if `!user.onboardingComplete` → push `/(onboard)/[role]/index`; else push `/(role)/(first-tab)`
+### Step E — if you can't deterministically identify the next task
+**STOP. Ask the operator.** Never invent a task that's not in BUILD_PLAN.
+Never start work that's "obviously needed" but unwritten.
 
-2. **`mobile/app/_layout.tsx`** — wrap app in `<AuthProvider>`. On mount, check session, route accordingly.
-
-3. **`mobile/app/(auth)/_layout.tsx`** — Stack with `headerShown: false`.
-
-4. **`mobile/app/(auth)/login.tsx`** — two-step (email → OTP) per IA §7.0, with rate-limit error handling and 60s resend countdown.
-
-5. **`mobile/app/(auth)/role-select.tsx`** — only shown if `user.role` is null (rare; pilot users are pre-assigned). Otherwise auto-skip.
-   - **Admin must NEVER appear as an option here.** Filter the role list to `PublicRole` only — `['resident', 'homeowner', 'building_owner', 'provider', 'financier', 'electrician']`. Per [IA_SPEC §8.5](../IA_SPEC.md), there is no UI path that creates an admin.
-   - Display strings: "Resident", "Homeowner", "Building Owner", "Provider", "Financier", "Electrician"
-   - Provide brief explanatory copy under each option so users disambiguate Resident (live in someone else's building) vs Homeowner (own a single-family home) vs Building Owner (own a multi-unit property).
-
-6. **`useApiData<T>`** — wraps async fetch with loading/error/refetch. Caches per stable-string key. Re-fetches on focus.
-
-7. **`api.ts`** — `useApi()` hook returns api-client functions auto-bound to `session.token`. Throws ApiError on non-200.
-
-8. **`PilotBanner`** — exported component with `<PilotBanner variant="pledge"|"settlement"|"data" />` so different surfaces show specific copy.
-
-9. **`SyntheticBadge`** — small pill with `source` prop. Renders `synthetic` only when source is synthetic.
-
-10. **`ProjectCard`** — Airbnb-inspired:
-    - 16:9 building photo (fallback gradient if no `photoUrl`)
-    - DRS pill (color-coded), stage pill
-    - Title, location
-    - Gap summary (e.g. "Needs 12 panels + inverter")
-    - Right-side capital/equipment/electrician ask
-    - `onPress` → navigates to embedded project detail (each role's discover screen handles routing)
-
-11. **`PortfolioRow`** — Robinhood-inspired:
-    - Building name, position size
-    - Sparkline of returns YTD
-    - IRR pill, returns-to-date
-
-12. **`EnergyTodayChart`** — 24h stacked area:
-    - X-axis: hours 0..23 today
-    - Stacked: solar (peach), battery (graphite), grid (sky)
-    - Optional generation overlay when `showGeneration=true`
-    - Synthetic badge in top-right
-
-13. **`RoofMap`**:
-    - Wrap `react-native-maps` `MapView` with `mapType="satellite"`
-    - Render `<Polygon>` from passed coords
-    - Tap-to-add-corner mode when `editable=true`
-    - Compute area client-side via `polygonAreaM2` from `mobile/lib/geo.ts`
-    - Helper: `mobile/lib/geo.ts` implements shoelace + latitude correction
-
-14. **`mobile/lib/geo.test.ts`** — unit test against a known reference polygon (target ±2%).
-
-**Acceptance:**
-- [ ] Session hydration works; force-quit + reopen still logged in
-- [ ] Email OTP rate-limit (429) renders friendly error
-- [ ] All shared components export and type-check
-- [ ] geo.test.ts passes
+### Sibling-branch awareness (read-only check)
+```sh
+git log origin/agent/backend --oneline | head -5
+git log origin/agent/web --oneline     | head -5
+git log origin/main --oneline           | head -5
+```
+Backend updates often add new types or endpoints your screens need to
+consume. If your next task imports a type that's not on main yet, rebase
+your branch on main first OR check the agent/backend branch.
 
 ---
 
-## Subagent: `onboard`
+## 7. Workflow per task
 
-Build per-role onboarding flows per [IA_SPEC.md §7](../IA_SPEC.md).
+### Branch
+```sh
+git checkout agent/mobile
+git pull --ff-only origin agent/mobile
+git checkout -b task/P{N}.{g}.{t}-short-name
+```
 
-**Structure:**
-- `mobile/app/(onboard)/_layout.tsx` — Stack, no tabs, no back-to-auth allowed mid-flow
-- `mobile/app/(onboard)/welcome.tsx` — splash → CTA "Get started" → `/(auth)/login`
-- After OTP verify, AuthContext routes to `/(onboard)/[role]/index` if `!user.onboardingComplete`
-- Each role has its own folder with sequential screens
-- Final step in every role calls `POST /me/onboarding-complete` and replaces nav stack with `/(role)/(first-tab)`
+### Implement per artifact type (DONE_DEFINITION §Components / Screens / Embedded / Onboarding)
 
-**Per-role implementation:**
+#### Components (TSX)
+- Lives at spec-mandated path (`mobile/components/shared/...` or
+  `mobile/components/{role}/...`).
+- Named export matches IA_SPEC exactly (case-sensitive).
+- Props interface in `packages/shared/src/types.ts` for cross-role
+  components — request from Claude backend if missing. Role-only props
+  may live locally.
+- Renders every spec-required state (e.g., `BuildingAvailabilityStatePill`
+  renders all 7 of A0–A6).
+- No invented fields. No silent fallbacks.
+- Snapshot or smoke test if non-trivial.
 
-### Resident (`(onboard)/resident/`)
-- `index.tsx` → "Enter your building's invite code"
-- `confirm.tsx` → show building card from API, "This is my building" / "Wrong building"
-- `first-pledge.tsx` → optional first pledge using same pledge entry component as the resident Home tab (lift to `mobile/components/PledgeEntry.tsx`)
-- Final → `/(resident)/home`
+#### Screens / routes (TSX)
+- Lives at spec path (`mobile/app/(role)/<screen>.tsx`).
+- 5-tab rule: per role, exactly the tabs IA_SPEC lists (Admin = 3 tabs).
+- Profile is rightmost tab (IA-U2).
+- Profile embeds in order: Account → role-specific embeds → Settings →
+  Support → Logout (IA-U8).
+- All 4 states render: loading / empty / error / populated. Use
+  `<ScreenState>` wrapper (P0.3.16, exists in `mobile/components/shared/`).
+- No dead buttons — every onClick has a real handler.
 
-### Homeowner (`(onboard)/homeowner/`)
-- `address.tsx` → single address input. Geocode on blur. Submitted form sets `kind='single_family'`, `unit_count=1` automatically (these are NOT user-editable for homeowner role; backend enforces).
-- `roof-capture.tsx` → identical waterfall to building-owner roof-capture (Microsoft auto-suggest → owner-traced → manual sqm). Use the same RoofMap component.
-- `terms.tsx` → homeowner-specific royalty + ownership terms preview (read-only summary)
-- `first-pledge.tsx` → optional first pledge using the same PledgeEntry component as residents. "Skip" allowed.
-- Final → `POST /me/onboarding-complete` → `/(homeowner)/home`
+#### Embedded routes
+- Lives under `(role)/_embedded/`.
+- Reachable from at least one parent tab (verify by grep).
+- Back returns to spec-correct parent tab.
 
-### Building Owner (`(onboard)/building-owner/`)
-- `index.tsx` → building basics form (name, address with on-blur geocode, unit count, occupancy slider)
-- `roof.tsx` → uses `RoofMap` + `useApiData(suggestRoof)` waterfall:
-  1. If suggest returns polygon → "Looks right" / "Let me redraw" / "Type sqm"
-  2. Owner-traced polygon → tap corners on satellite tile
-  3. Manual sqm entry fallback
-- `terms.tsx` → building owner royalty preview (read-only summary)
-- Final → `/(building-owner)/home`
+#### Onboarding steps
+- Lives at spec step path.
+- Writes every spec-required field to backend.
+- Step gating preserved (can't skip gated steps).
+- Back/exit safe; in-progress state preserved.
+- Idempotent (re-submit doesn't double-write).
+- **O7 — NO payment fields.** Onboarding step must NOT capture
+  bank/M-Pesa/card/IBAN/PayPal/crypto/payout/account_number/routing.
+  Payment-rail setup is point-of-need (post-onboarding), at the moment
+  of first action that needs it. Enforced by CI + lint rule.
 
-### Provider (`(onboard)/provider/`)
-- `index.tsx` → business basics: name, contact, business type radio (Panels / Infrastructure / Both) → posted to `POST /me/onboarding-complete` with `business_type`
-- `inventory.tsx` → optional initial inventory; "Skip" allowed
-- Final → `/(provider)/discover`
+### PR size ceiling: **300 LOC diff.** Larger work splits into multiple tasks.
 
-### Electrician (`(onboard)/electrician/`)
-- `index.tsx` → name, region, scope multi-select (install / inspection / maintenance)
-- `cert.tsx` → optional certification upload; "Add later" allowed
-- Final → `/(electrician)/discover`
+### Push early, push often (commit ≠ shipped)
 
-### Financier (`(onboard)/financier/`)
-- `index.tsx` → investor profile: institution / individual radio, target deal size, target return profile
-- Final → `/(financier)/discover`
+**Commit is local — push is recoverable.** A `git commit` lives only in
+your local `.git/objects` until you push. If your machine dies, the
+commit dies with it. The work isn't "shipped" until it's on origin.
 
-**Acceptance:**
-- [ ] Each role's onboarding completes end-to-end and lands on the correct first tab
-- [ ] `POST /me/onboarding-complete` is called and `user.onboardingComplete` flips
-- [ ] Skipping optional steps doesn't break the flow
-- [ ] Owner roof-capture round-trips polygon → backend → re-render
-- [ ] No mock data; all forms POST to real endpoints
+Discipline:
 
----
+```sh
+# After EVERY meaningful commit on a task branch, push it:
+git push -u origin task/P{N}.{g}.{t}-short-name   # first push (with -u)
+# … more work, more commits …
+git push origin task/P{N}.{g}.{t}-short-name      # every subsequent commit
+```
 
-## Subagent: `resident`
+The task branch on origin acts as your durable backup. CI hasn't passed
+yet, the task isn't merged, but the work is safe. Re-push as you go,
+not just at the end.
 
-Implement Resident's 4 tabs per [IA_SPEC.md §1](../IA_SPEC.md).
+In our terminology:
+- **Local commit** = at risk
+- **Pushed to task branch** = safe, not accepted
+- **Merged to `agent/mobile`** = accepted into your agent's working state
+- **Merged to `main` (phase boundary, coordinator action)** = canonical project state
+- **Deployed** = live for users (P9+)
 
-### `_layout.tsx`
-Tabs: Home (icon: home/wallet), Energy (icon: flash), Wallet (icon: pie-chart), Profile (icon: person). Profile is rightmost.
+### Verify locally before push
+```sh
+npm run ci          # full CI must be green
+```
 
-### `home.tsx` — Tokens
-- `<PilotBanner variant="pledge" />`
-- Big number: pledged total in KES (from `getPrepaidBalance(user.buildingId)`)
-- Today's projected solar coverage card (from `getEnergyToday(user.buildingId)`)
-- Primary CTA: `[Pledge tokens]` opens `PledgeEntry` modal
-- Recent pledges (3 rows) + footer "View all →" pushes embedded `pledge-history`
-- All data via `useApiData`. Loading skeleton. Error retry.
+### Commit + push + merge (you self-merge to agent/mobile)
+```sh
+git add <files>
+git commit -m "feat(P{N}.{g}.{t}): short description
 
-### `energy.tsx`
-- `<EnergyTodayChart generation=... load=... showGeneration={ownsAnyShare} source="synthetic" />`
-- Today summary cards: kWh consumed, kWh from solar, KES saved
-- Generation panel (only renders if `ownsAnyShare===true`):
-  - Today's generation share (kWh = total × user.shareFraction)
-  - 30-day sparkline
-- Empty state with CTA "Buy a share to see live generation"
-- Computes `ownsAnyShare` via `getOwnership(user.buildingId, 'resident')` → user has any position > 0
+[Body: what shipped, spec citation, gates satisfied.]
 
-### `wallet.tsx`
-- Three-card top: Pledged total / Earnings / Net savings
-- Tabs (segmented control internal): Cashflow / Ownership
-- Cashflow: list from `getWalletTransactions(user.id)`
-- Ownership: positions from `getOwnership(...)`. Empty state with CTA to embedded "marketplace" screen
-- Embedded screens (push, not tabs):
-  - `_embedded/marketplace.tsx`
-  - `_embedded/asset-detail.tsx`
+Spec: IA_SPEC §<section>
+BUILD_PLAN: P{N}.{g}.{t}
+DONE_DEFINITION: <relevant gates from C/S/E/O/U>"
 
-### `profile.tsx`
-- Top: avatar (initials), email, role pill, building name
-- Section: Settings (notifications toggles, units, language)
-- Section: Support (help articles list, "Contact support" → email mailto)
-- Logout button (destructive style)
+git push -u origin task/P{N}.{g}.{t}-short-name
+git checkout agent/mobile
+git merge --no-ff task/P{N}.{g}.{t}-short-name -m "Merge P{N}.{g}.{t}: ..."
+git push origin agent/mobile
+```
 
-**Acceptance:**
-- [ ] Resident logs in → lands on Home → sees real pledged balance
-- [ ] Tap Pledge → enter 1000 → submits → balance refreshes within 1s
-- [ ] Energy tab generation panel hidden for resident with 0 shares; visible for resident with shares
-- [ ] No mock numbers; loading skeletons; error toasts
-- [ ] Logout works
+### After the merge — update the ledger (§11 below)
+Append one line per the template at §10.
 
 ---
 
-## Subagent: `building-owner`
+## 8. Doctrine tripwires — DO NOT VIOLATE
 
-Implement Building Owner's 4 tabs per [IA_SPEC.md §2](../IA_SPEC.md). Folder is `mobile/app/(building-owner)/`. Role string is `'building_owner'`.
+If you find yourself about to ship something that violates any of these,
+**STOP** and either fix the design or escalate. Don't write a workaround
+that silently breaks an invariant.
 
-### `_layout.tsx`
-Tabs: Home (icon: business), Energy (icon: flash), Wallet (icon: cash), Profile (icon: person).
+### Mobile-relevant invariants
+1. **`role='admin'` never appears in the public roleset.** `(auth)/role-select.tsx`
+   lists exactly 6 public roles (resident, homeowner, building_owner,
+   provider, financier, electrician). Admin is JWT scope, not a public role.
+   Type-level: `PublicRole = Exclude<Role, "admin">`.
+2. **"Buy tokens" CTA is impossible to render pre-activation** (Scenario A §5).
+   `(resident)/home.tsx` pre-live state has no token-purchase button.
+   Mutex with pledge UI per A5.
+3. **Homeowner wallet never renders a `host_royalty` line.** Even if the
+   backend response includes one (it shouldn't), the wallet component
+   filters it.
+4. **No "guaranteed return", "you will earn", "fixed payout", "risk-free"
+   copy** anywhere — violates Scenario F §17. Use "projected range",
+   "scenario", "under assumptions".
+5. **No "generation decreased", "your generation falls"** when describing
+   share buy-down — violates Scenario E §15.1. Use "retained claim
+   decreased", "remaining share".
+6. **No "common bus", "shared injection", "single inverter for the building"** —
+   violates Scenario D §3 + installation §2. Use "per-apartment ATS",
+   "Solar DB + ATS chain".
+7. **No "you earned by paying yourself" on homeowner wallet** —
+   violates Scenario C §11.1. Self-consumption is savings, not cash.
+8. **No payment fields in any onboarding form, route, or component**
+   (ADR 0003). Bank/M-Pesa/card/IBAN/PayPal/crypto/payout/account_number/
+   routing → all forbidden in `mobile/app/(onboard)/**`. Payment-rail
+   setup lives at `_embedded/payout-setup.tsx`, invoked at first action
+   that needs it.
+9. **PII fields render through `<MaskedField>` primitive**, never raw
+   string interpolation of phone/email/national-id/account-number.
+   Click-to-reveal hits backend; backend writes audit row.
+10. **No mock-data import outside test files.** Lint enforces this. Use
+    `<ScreenState>` wrapper for loading/empty/error/populated states
+    instead of falling back to fixtures (CR-8 — no silent fallback).
+11. **DRS/LBRS forms render NO "Force complete" button** at all — not just
+    disabled. Render scan in tests asserts the DOM contains no element
+    matching `/force.*complete/i`.
 
-### `home.tsx` — Project
-- If user has no `building_id`: giant `[Start project]` CTA → routes to `/(onboard)/owner/index` re-entry
-- If has building:
-  - Roof polygon thumbnail header (from `RoofMap`, `editable=false`)
-  - DRS card (`<DrsCard data=... />` — use existing component, wired to real API)
-  - Top 3 blockers list
-  - Deployment progress bar (qualifying → funding → installing → live)
-  - Pledged demand KPI
-  - Action rail (single row of pills): View blockers / Compare bill / Resident roster / Approve terms / Deployment
-  - Each rail item pushes to `_embedded/{name}.tsx`
-
-### `energy.tsx`
-- `<EnergyTodayChart>` always shows generation (owner always sees rooftop generation)
-- 30-day toggle
-- KPIs: today gen / today usage / today revenue
-
-### `wallet.tsx` (renamed from earnings.tsx)
-- Royalties balance card
-- Payout history list
-- Projected next-month royalty
-
-### `profile.tsx` (NEW)
-- Account, Building profile section, Settings, Support, Logout
-
-### Embedded `_embedded/*`
-For each of `drs.tsx`, `deployment.tsx`, `resident-roster.tsx`, `approve-terms.tsx`, `compare-today.tsx`: rebuild with real API data, no mocks. These are pushed from Home action rail; they are not in the tab bar.
-
-**Acceptance:**
-- [ ] Owner without building → giant Start CTA works through onboarding
-- [ ] Owner with building sees DRS, blockers, deployment progress, pledged demand
-- [ ] All 5 embedded screens render real data
-- [ ] No dead buttons
-
----
-
-## Subagent: `homeowner`
-
-Implement Homeowner's 4 tabs per [IA_SPEC.md §1.5](../IA_SPEC.md). A homeowner is a single-family-home owner who is also the sole resident — `users.role='homeowner'` AND `buildings.kind='single_family'` AND `buildings.unit_count=1`. The seed user `homeowner@emappa.test` exercises this path.
-
-**Composition principle:** the homeowner subagent does NOT reimplement token UI or project UI. Compose `TokenHero` and `ProjectHero` from the infra subagent. Compose `EnergyTodayChart`, `WalletSegments`-style patterns same way.
-
-### `_layout.tsx`
-Tabs: Home, Energy, Wallet, Profile. Profile is rightmost.
-
-### `home.tsx` — Adaptive
-Read the user's building (`useApiData(getBuildingForUser)`). Branch on `building.stage`:
-
-**Pre-live** (`stage in ('listed','qualifying','funding','installing')`):
-- `<PilotBanner variant="pledge" />`
-- `<ProjectHero variant="full" drs={...} stage={building.stage} blockers={...} />`
-- `<TokenHero disabled balanceKes={0} ... />` with copy *"Tokens activate once your project goes live."*
-- Action rail (single row of pills) → push to embedded screens:
-  - View blockers → `_embedded/drs.tsx`
-  - Approve terms → `_embedded/approve-terms.tsx`
-  - Compare bill → `_embedded/compare-today.tsx`
-  - Deployment timeline → `_embedded/deployment.tsx`
-  - Roof detail → `_embedded/roof-detail.tsx`
-
-**Live** (`stage='live'`):
-- `<PilotBanner variant="pledge" />`
-- `<TokenHero balanceKes={...} todayCoverageKwh={...} onPledge={...} />`
-- `<ProjectHero variant="compact" drs={...} stage="live" blockers={[]} />`
-- Action rail: Pledge / View energy / Wallet / Roof
-
-### `energy.tsx`
-Same as building-owner energy: `<EnergyTodayChart showGeneration={true} ... />`. Always shows generation since homeowner owns the rooftop.
-
-### `wallet.tsx`
-Three top cards: Pledged total / Royalties earned / Share earnings.
-Segmented control internal: Cashflow / Ownership / Pledges.
-Cashflow: union of pledge debits + royalty credits + share-earning credits via `getWalletTransactions(user.id)`.
-Ownership: positions from `getOwnership(building.id, 'homeowner')`. If shares < 100%, render a "Buy back shares" CTA → embedded marketplace.
-Pledges: history with status pills.
-
-### `profile.tsx`
-- Account header (avatar, email, "Homeowner" pill)
-- **Building & roof** section: address, polygon thumbnail (RoofMap, editable=false), roof source/confidence, [Edit roof] CTA
-- **Settings** (embedded section)
-- **Support** (embedded section)
-- Logout
-
-### Embedded `_embedded/`
-Reuse Building Owner's embedded screen logic where it's identical (DRS, deployment, terms, compare-today). Don't duplicate code — import the building-owner versions if they're already written, OR put them in a shared location and import from both. Coordinate with the `infra` subagent if a shared `mobile/components/embedded/` location is needed.
-
-**Acceptance:**
-- [ ] Homeowner without a building (fresh seed) → Home shows giant "Start project" CTA → routes to `/(onboard)/homeowner/address`
-- [ ] Homeowner with `stage != 'live'` → ProjectHero is the hero, TokenHero is disabled
-- [ ] Homeowner with `stage = 'live'` → TokenHero is the hero, ProjectHero is compact
-- [ ] Homeowner can pledge end-to-end against their own building
-- [ ] Energy tab always shows generation (never gated)
-- [ ] Wallet shows three streams correctly; "buy back shares" appears when shares < 100%
-- [ ] Profile lets homeowner update their roof polygon
+### Anti-patterns that auto-reject
+- `// TODO:` left in shipped code
+- `@ts-ignore` / `@ts-expect-error` without linked issue
+- `console.log` in production paths
+- Mock data not behind a `<SyntheticBadge>`
+- Inline styles where a theme token exists
+- New routes added without updating IA_SPEC.md if not already listed
 
 ---
 
-## Subagent: `contributors`
+## 9. Coordinator + escalation
 
-Three roles, all "Discover-first." Implement per [IA_SPEC.md §3, §4, §5](../IA_SPEC.md). Use the shared `ProjectCard` for all Discover screens; pass `role={user.role}` so cards render the right "ask" copy.
+### Who decides
+- Spec ambiguity → Claude backend (coordinator) amends IA_SPEC.md
+- Type-contract additions → Claude backend
+- Backend endpoint shapes → Claude backend
+- Cross-agent file conflicts → Claude backend resolves at phase merge
 
-### Provider (`(provider)/`)
-- `_layout.tsx`: Discover, Projects, Generation, Wallet, Profile
-- `discover.tsx`: filter bar + `FlatList<ProjectCard>` from `getDiscover('provider', filters)`. Tap → `_embedded/project/[id].tsx` (BOM ask, quote submission)
-- `projects.tsx`: current project status, DRS/LBRS gates, quote/BOM commitments, delivery proof, and go-live readiness. Inventory/catalog/SKUs live under Profile, not as a primary tab.
-- `generation.tsx`: list arrays where user holds shares > 0. Empty state when shares=0 ("When residents buy your shares, you receive payouts but lose live generation visibility."). For each array: `<EnergyTodayChart>` + share fraction + payout share.
-- `wallet.tsx`: equipment-sale + share-royalty streams; cashflow list
-- `profile.tsx`: account + business profile (panels/infra/both — editable) + Settings + Support + Logout
-
-### Electrician (`(electrician)/`)
-- `_layout.tsx`: Discover, Jobs, Wallet, Compliance, Profile
-- `discover.tsx`: project cards from `getDiscover('electrician', filters)`. Tap → embedded job preview with checklist preview + "Accept job" CTA
-- `jobs.tsx`: segmented control Active / Completed / Maintenance. Job rows from `getJobs(user.id)`. Tap → embedded job detail with checklist, photo capture (use Expo `expo-camera`), readings entry, sign-off
-- `wallet.tsx`: job earnings, payouts, projected pipeline
-- `compliance.tsx`: certifications list with status pills, expiry alerts at top, training courses, upload-doc CTA
-- `profile.tsx`: account + Settings + Support + link to Compliance + Logout
-
-### Financier (`(financier)/`)
-- `_layout.tsx`: Discover, Portfolio, Wallet, Profile (4 tabs)
-- `discover.tsx`: project cards from `getDiscover('financier', filters)`. Tap → `_embedded/deal-room/[id].tsx`
-- `portfolio.tsx`: top KPI strip (deployed / returns / IRR) + compounding curve sparkline + `<PortfolioRow>` list
-- `wallet.tsx`: cash available / deployed / returns; cashflow list
-- `profile.tsx`: account + investor profile + Settings + Support + Logout
-
-**Acceptance:**
-- [ ] Each role lands on Discover after login
-- [ ] Discover feeds are real (3 cards minimum from seed data)
-- [ ] Provider Generation tab: hidden generation if shares=0 (empty state); visible if shares>0
-- [ ] Electrician can accept a job from Discover → it appears in Jobs Active
-- [ ] Financier can pledge capital → appears in Portfolio
-- [ ] No dead buttons in any of the three roles
+### Escalate to the human operator when:
+- Spec says one thing, imported-specs say another, can't reconcile
+- A spec'd shared primitive doesn't exist yet and your phase needs it
+- Build/test failure persists across two task attempts
+- Two of your tasks logically conflict (e.g., two different home.tsx
+  versions are spec'd)
 
 ---
 
-## Subagent: `admin`
+## 10. End of session: update the ledger
 
-Minimal mobile admin per [IA_SPEC.md §6](../IA_SPEC.md). 3 tabs. **The admin tab bar is gated on `user.role === 'admin'`** — non-admins never reach this stack. Per [IA_SPEC §8.5](../IA_SPEC.md), admin role is never selectable from any UI; admins exist only because an operator ran `backend/scripts/grant_admin.py` or seed.py.
+Last thing every session: append one line to §11 below:
 
-- `_layout.tsx`: Alerts, Projects, Profile. Add a hard guard at the top: if `session.user.role !== 'admin'`, redirect to login. (Belt + suspenders — the AuthContext routing should already prevent reaching this stack.)
-- `alerts.tsx`: high-priority alerts list (from cockpit's audit feed scoped to admin)
-- `projects.tsx`: portfolio scan (read-only). Tap → embedded read-only project detail
-- `profile.tsx`: account + Settings + Support + Logout
+```
+- {YYYY-MM-DD} — P{N}.{g}.{t} {short-name} — merged {short-sha} into agent/mobile
+```
 
-**Acceptance:**
-- [ ] Admin lands on Alerts after login
-- [ ] No write operations on mobile (admin writes happen in cockpit)
-- [ ] Non-admin user manually navigating to `/(admin)/...` gets redirected away
-- [ ] Role-select UI never shows "Admin" as an option
+For coordinator notes (e.g., spec amendment requests, blocker reports):
+```
+- {YYYY-MM-DD} — Note: <text>
+```
 
----
-
-## Cross-cutting requirements
-
-1. **Pilot banner** appears on every screen that involves money or data:
-   - `variant="pledge"` on resident Home, Wallet, and pledge entry
-   - `variant="settlement"` on owner/provider/financier Wallet
-   - `variant="data"` on every Energy chart container
-
-2. **Synthetic badge** appears on every chart fed by synthetic data. Hidden when source is measured.
-
-3. **Profile screens** all share the same skeleton component `mobile/components/ProfileScaffold.tsx`:
-   - Header (avatar + name + role pill)
-   - Sections (passed in as children: Account, Settings, Support, role-specific extras)
-   - Footer logout button
-
-4. **Empty states** are real — no `View>Text>"Coming soon"`. Use `mobile/components/EmptyState.tsx` (build it) with: icon, headline, body, optional CTA.
-
-5. **Loading states** are real skeletons or activity indicators — no flashing white.
-
-6. **Error states** are friendly — never raw stack traces. Use `mobile/components/ErrorState.tsx` (build it) with retry.
-
-7. **Every screen** uses `<SafeAreaView>` and respects the system status bar.
+Git history is the source of truth; the ledger is the human-readable index.
 
 ---
 
-## Final per-agent steps before push
+## 11. Completed-tasks ledger (append-only)
 
-1. Run `npm run typecheck` from repo root — must pass with zero errors
-2. Run any tests you wrote (`mobile/lib/geo.test.ts`)
-3. Smoke test on iOS simulator: log in as each seed user, walk through each role's tabs
-4. Squash commits per subagent: each subagent produces 1–2 commits on `sprint/mobile`
-5. **Do not push.** Coordinator will merge `sprint/mobile` into `main` locally.
+### P0 (foundation)
+
+#### P0.1 structural cleanup
+- 2026-05-17 — P0.1.1 consolidate jobs.tsx + jobs-inbox.tsx into projects.tsx — merged into agent/mobile
+- 2026-05-17 — P0.1.2 embed electrician compliance in profile — merged 07f974a into agent/mobile
+- 2026-05-17 — P0.1.3 embed financier tranche-release in payback-scenarios — merged 3fd4266 into agent/mobile
+- 2026-05-17 — P0.1.5 rename installer/ folder to electrician/ — merged f9ebb53 into agent/mobile
+- 2026-05-17 — P0.1.6 rename owner/ folder to building-owner/ — merged into agent/mobile
+- 2026-05-17 — P0.1.7 dissolve proposed-flow/ — merged 1692889 into agent/mobile
+
+#### P0.2 shared primitives (29 of 30; P0.2.8 DRSProgressCard shipped earlier as P0.1.8)
+- 2026-05-17 — P0.2.1 BuildingAvailabilityStatePill — merged ba822ba into agent/mobile
+- 2026-05-17 — P0.2.2 CapacityQueueStatusPill — merged b0224df into agent/mobile
+- 2026-05-17 — P0.2.3 DataQualityBadge — merged 41fa1ce into agent/mobile
+- 2026-05-17 — P0.2.4 EligibilityBadge — merged 43a3993 into agent/mobile
+- 2026-05-17 — P0.2.5 KYCStatusBadge — merged 59ae8b3 into agent/mobile
+- 2026-05-17 — P0.2.6 SyntheticBadge — merged b259ce1 into agent/mobile
+- 2026-05-17 — P0.2.7 TokenBalanceHero — merged 7f9a06d into agent/mobile
+- 2026-05-17 — P0.2.9 SystemHealthIndicator — merged a8f7917 into agent/mobile
+- 2026-05-17 — P0.2.10 LiveSupplyIndicator — merged c12f078 into agent/mobile
+- 2026-05-17 — P0.2.11 OwnershipPositionCard — merged 44c8bc4 into agent/mobile
+- 2026-05-17 — P0.2.12 OwnershipRingChart — merged 633d0ea into agent/mobile
+- 2026-05-17 — P0.2.13 OwnershipBreakdown — merged 269d8ab into agent/mobile
+- 2026-05-17 — P0.2.14 DeploymentProgressBar — merged d2ec6b7 into agent/mobile
+- 2026-05-17 — P0.2.15 BlockerPill — merged cc1691a into agent/mobile
+- 2026-05-17 — P0.2.16 CashflowLedger — merged b1fc82b into agent/mobile
+- 2026-05-17 — P0.2.17 FilterBar — merged fb365a9 into agent/mobile
+- 2026-05-17 — P0.2.18 ProjectStatusCard — merged 5a9d834 into agent/mobile
+- 2026-05-17 — P0.2.19 ProjectTimeline — merged f1c70cf into agent/mobile
+- 2026-05-17 — P0.2.20 GenerationChart — merged 0a1d28e into agent/mobile
+- 2026-05-17 — P0.2.21 EnergyFlowChart — merged d68ea84 into agent/mobile
+- 2026-05-17 — P0.2.22 SettlementStatement — merged 07ea223 into agent/mobile
+- 2026-05-17 — P0.2.23 PayoutAccountCard — merged c1fe862 into agent/mobile
+- 2026-05-17 — P0.2.24 ComplianceStatusIndicator — merged d67f87b into agent/mobile
+- 2026-05-17 — P0.2.25 RatingsSummary — merged 7bccf89 into agent/mobile
+- 2026-05-17 — P0.2.26 DocumentUploadCard — merged 7994d4c into agent/mobile
+- 2026-05-17 — P0.2.27 LaborCapitalClaimCard — merged 94eb801 into agent/mobile
+- 2026-05-17 — P0.2.28 RoofPolygonViewer — merged 52588e3 into agent/mobile
+- 2026-05-17 — P0.2.29 PilotBanner — merged ed02fa2 into agent/mobile
+- 2026-05-17 — P0.2.30 RoofMap — merged 49ef3e7 into agent/mobile
+
+#### P0.3 + P0.4 mobile bits
+- 2026-05-17 — P0.3.16 ScreenState wrapper (no-silent-fallback primitive, CR-8) — merged a8e405e into agent/mobile
+- 2026-05-17 — P0.4.1 mobile/components/shared/index.ts barrel export — merged 999b829 into agent/mobile
+
+#### Phase done
+- 2026-05-17 — Coordinator merge P0 mobile → main complete (commit 8621169); tag phase-P0-done-2026-05-17
+
+### P1 (Resident e2e — mobile)
+
+Note: also covered by §6 git-log grep, but mirrored here per ledger contract.
+
+- 2026-05-17 — P1.1.1 wire resident home availability + queue pills — merged 25ff668 into agent/mobile
+- 2026-05-17 — P1.1.2 wire resident energy chart + allocation explainer — merged 47c5b71 into agent/mobile
+- 2026-05-17 — P1.1.3 wire resident wallet pledges/tokens/ownership tabs — merged 9557956 into agent/mobile
+- 2026-05-17 — P1.1.4 wire resident profile building + load sections — merged 930bbfe into agent/mobile
+- 2026-05-17 — P1.2.1–P1.2.8 add 8 resident embedded route shells (single PR) — merged 21b1267 into agent/mobile
+- 2026-05-17 — P1.2.2 implement queue-detail with §6.3 priority factors (deeper impl atop the shell) — merged 73e21ae into agent/mobile
+- 2026-05-17 — P1.3.4 extract PledgeHistoryList for resident wallet — merged 4dfd33a into agent/mobile
+- 2026-05-17 — P1.3.5 OwnershipMarketplaceCard per Scenario A §8.6 — merged 69cf4eb into agent/mobile
+- 2026-05-17 — P1.4.1 expand resident find-building onboarding — merged 8e7130f into agent/mobile
+
+### Coordinator notes from Claude backend (inbound)
+- **2026-05-17 — P1.2.3 ats-detail deeper impl**: the backend endpoint
+  `GET /residents/{user_id}/ats-state` requires `?apartment_label=` query
+  param. Source it from `user.profile.apartmentLabel` (which onboarding
+  step P1.4.1 "find building" will need to set). Until per-user apartment
+  FK exists, the caller is responsible for knowing its own apartment label.
+- **2026-05-17 — P1.6.x backend complete**: backend endpoints for
+  POST /pledges, POST /tokens/purchase, POST /residents/{id}/load-profile,
+  GET /residents/{id}/queue-position, POST /residents/{id}/queue-request,
+  GET /residents/{id}/ats-state are all merged on agent/backend (will land
+  on main at P1 phase merge). Your embedded routes can wire to these.
+  All mutations require a non-empty `reason` field in the request body
+  (CR-2). Use `<RequiresReason>`-equivalent pattern on mobile.
+
+### Next on your queue (per BUILD_PLAN, after deduping against §11 above)
+
+P1 mobile remaining (~12 tasks):
+- **P1.2.3** — ats-detail deeper impl atop the shell (see coordinator note)
+- **P1.2.4** — marketplace deeper impl
+- **P1.2.5** — load-profile-edit deeper impl
+- **P1.2.6** — drs-detail deeper impl
+- **P1.2.7** — token-purchase deeper impl (requires building.stage='live'
+  + capacity_cleared per ADR 0002 doctrine)
+- **P1.3.1** — PledgeBalanceCard
+- **P1.3.2** — LoadProfileConfidenceMeter (L1/L2/L3 visualizer)
+- **P1.3.3** — AllocationExplainer modal (may already be inline in P1.1.2;
+  if so, extract + mark complete)
+- **P1.4.2** — confirm building onboarding step
+- **P1.4.3** — load profile L1 onboarding step
+- **P1.4.4** — capacity check onboarding step
+- **P1.4.5** — pledge/buy decision onboarding step
+
+Then P2 (Homeowner ~25), P3 (BO ~16), P4 (Provider ~30), P5 (Electrician
+~25), P6 (Financier ~25). P1.5.* + Pn.5.* web parity are Codex web's column.
 
 ---
 
-## Definition of done
-
-- Six roles with the exact tab layout in [IA_SPEC.md §1–6](../IA_SPEC.md)
-- Five complete onboarding flows
-- Email OTP login + session persistence
-- Resident pledge end-to-end against real backend
-- Owner roof capture end-to-end against real backend
-- Provider/electrician/financier discover feeds populated with real seed data
-- Generation visibility correctly gated by share ownership across resident, owner, provider
-- Zero dead buttons across all roles
-- Zero mock numbers anywhere
-- Pilot banner on every money/data screen
-- Synthetic badge on every synthetic chart
-- All Profile screens contain Settings + Support embedded
-- Logout returns to login
-- `npm run typecheck` exits 0
+**END CURSOR-MOBILE AGENT PROMPT.** When you finish a task, append to §11
+and start the next item per §6. When in doubt, re-read §8 — it tells you
+when to stop.

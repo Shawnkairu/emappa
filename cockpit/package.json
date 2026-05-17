@@ -12,11 +12,12 @@
   "dependencies": {
     "@emappa/api-client": "file:../packages/api-client",
     "@emappa/shared": "file:../packages/shared",
-    "@emappa/web-immersive": "file:../packages/web-immersive",
     "@emappa/ui": "file:../packages/ui",
+    "@emappa/web-immersive": "file:../packages/web-immersive",
     "@vitejs/plugin-react": "6.0.1",
     "react": "19.1.0",
     "react-dom": "19.1.0",
+    "react-router-dom": "^7.10.1",
     "recharts": "3.8.1",
     "vite": "8.0.10"
   },

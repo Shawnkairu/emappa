@@ -10,6 +10,15 @@ import type {
 } from "@emappa/shared";
 
 export const COCKPIT_SESSION_KEY = "emappa_cockpit_session";
+export const CONSERVATIVE_HEADER = "X-Emappa-Conservative";
+export const CONSERVATIVE_HEADER_EVENT = "emappa:conservative-header";
+export const CONSERVATIVE_HEADER_STATE_KEY = "emappa_conservative_header";
+
+export type ConservativeHeaderState = {
+  active: boolean;
+  at: string;
+  value: string;
+};
 
 export type EnergyToday = {
   generation_kwh: number[];
@@ -173,8 +182,29 @@ async function api<T>(path: string, options: RequestOptions = {}): Promise<T> {
     throw new Error(`API ${path} failed with ${response.status}${body ? `: ${body}` : ""}`);
   }
 
+  publishConservativeHeader(response.headers.get(CONSERVATIVE_HEADER));
+
   if (response.status === 204) return undefined as T;
   return response.json() as Promise<T>;
+}
+
+function publishConservativeHeader(value: string | null) {
+  if (value === null) return;
+
+  const normalized = value.trim().toLowerCase();
+  const state: ConservativeHeaderState = {
+    active: ["1", "true", "yes", "conservative"].includes(normalized),
+    at: new Date().toISOString(),
+    value,
+  };
+
+  try {
+    globalThis.sessionStorage?.setItem(CONSERVATIVE_HEADER_STATE_KEY, JSON.stringify(state));
+  } catch {
+    // The banner can still update from the in-memory event.
+  }
+
+  globalThis.dispatchEvent?.(new CustomEvent<ConservativeHeaderState>(CONSERVATIVE_HEADER_EVENT, { detail: state }));
 }
 
 function cleanBaseUrl(value: string) {
