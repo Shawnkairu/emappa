@@ -43,9 +43,15 @@ export const stakeholderSections = {
   ],
   electrician: [
     section("discover", "Discover", "Nearby projects, DRS blockers, funding, crew fit", "/(electrician)/discover", { webRoute: "/portal/electrician/discover" }),
-    section("jobs", "Projects", "DRS tasks, install, LBRS, signoff, maintenance", "/(electrician)/jobs", { webRoute: "/portal/electrician/jobs" }),
+    section(
+      "jobs",
+      "Projects",
+      "DRS tasks, install, LBRS, signoff, maintenance",
+      "/(electrician)/projects",
+      { webRoute: "/portal/electrician/jobs" },
+    ),
     section("wallet", "Wallet", "Milestones, labor-as-capital, holds, statements", "/(electrician)/wallet", { webRoute: "/portal/electrician/wallet" }),
-    section("profile", "Profile", "Certification tier, crew, safety, training refreshers", "/(electrician)/profile", { webRoute: "/portal/electrician/profile" }),
+    section("profile", "Profile", "Certification tier, crew, safety, embedded compliance checklist, training refreshers", "/(electrician)/profile", { webRoute: "/portal/electrician/profile" }),
   ],
   financier: [
     section("discover", "Discover", "Eligible deals, capital gap, risk badges, payback ranges (not guarantees)", "/(financier)/discover", { webRoute: "/portal/financier/discover" }),
