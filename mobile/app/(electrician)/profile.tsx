@@ -1,5 +1,5 @@
-import { InstallerProfileScreen } from "../../components/installer/InstallerScreens";
+import { ElectricianProfileScreen } from "../../components/electrician/ElectricianScreens";
 
-export default function ElectricianProfileScreen() {
-  return <InstallerProfileScreen />;
+export default function ElectricianProfileRoute() {
+  return <ElectricianProfileScreen />;
 }
