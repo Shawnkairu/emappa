@@ -38,7 +38,48 @@ The output tells you (a) which task IDs are already merged on your branch,
 (b) the current MISSING.md tally. With those two facts you can deterministically
 pick the next task per §6 below.
 
-If you were mid-task on a `task/...` branch before this rehydration:
+### 4th rehydration command — orphan-branch detection (CRITICAL)
+
+Every session, scan for `task/*` branches that exist locally but aren't
+on origin AND aren't part of `agent/mobile`. These are either YOUR
+in-flight work from a prior session, OR someone else's work that landed
+on this worktree (operator's local commits, prior agent's stale branches,
+etc). Never assume.
+
+```sh
+echo "=== local task branches not on origin ==="
+for b in $(git for-each-ref --format='%(refname:short)' refs/heads/task); do
+  if ! git rev-parse --verify "origin/$b" >/dev/null 2>&1; then
+    if git merge-base --is-ancestor "$b" agent/mobile 2>/dev/null; then
+      echo "  [MERGED]   $b — work is on agent/mobile; safe to ignore or delete"
+    else
+      AUTHOR=$(git log -1 --format=%an "$b" 2>/dev/null)
+      DATE=$(git log -1 --format=%ai "$b" 2>/dev/null)
+      SUBJ=$(git log -1 --format=%s "$b" 2>/dev/null)
+      echo "  [UNMERGED] $b"
+      echo "             author:  $AUTHOR"
+      echo "             date:    $DATE"
+      echo "             subject: $SUBJ"
+    fi
+  fi
+done
+```
+
+**Decision rules:**
+
+| Output | Action |
+|---|---|
+| `[MERGED] task/X` | Safe to ignore. Work already on agent/mobile via a different SHA. Optionally `git branch -D task/X` to clean up clutter (operator's call). |
+| `[UNMERGED] task/X` with author = your own current session | This is YOUR WIP from earlier. Push it (`git push -u origin task/X`) for safety. Decide whether to merge / continue / discard. |
+| `[UNMERGED] task/X` with author = anyone else (operator, prior agent, unknown) | **STOP.** This is someone else's work. Do NOT push, merge, or delete. Surface to operator: "I see unmerged task branch X authored by Y on date Z with subject S — what do you want me to do?" Operator decides. |
+
+**Author attribution caveat:** the `author` field comes from local git
+config and CANNOT reliably distinguish "operator commit" from "agent
+commit on operator's machine" — both show as the operator's name. Use
+author + date + commit subject + your own session's memory together to
+identify provenance. If unsure, ASK.
+
+### If you were mid-task on a `task/...` branch before this rehydration
 
 ```sh
 git checkout task/<the-branch-you-were-on>

@@ -39,7 +39,55 @@ MISSING.md tally. Cross-reference against the ledger in §11 of this file to
 map commits → task IDs (your commit subjects don't always carry task IDs;
 see §7 for the convention going forward).
 
-If you were mid-task on a `task/...` branch before this rehydration:
+### 4th rehydration command — orphan-branch detection (CRITICAL)
+
+Every session, scan for `task/*` branches that exist locally but aren't
+on origin AND aren't part of `agent/web`. These are either YOUR
+in-flight work from a prior session, OR someone else's work that landed
+on this worktree (operator's local commits, prior agent's stale branches,
+etc). Never assume.
+
+```sh
+echo "=== local task branches not on origin ==="
+for b in $(git for-each-ref --format='%(refname:short)' refs/heads/task); do
+  if ! git rev-parse --verify "origin/$b" >/dev/null 2>&1; then
+    if git merge-base --is-ancestor "$b" agent/web 2>/dev/null; then
+      echo "  [MERGED]   $b — work is on agent/web; safe to ignore or delete"
+    else
+      AUTHOR=$(git log -1 --format=%an "$b" 2>/dev/null)
+      DATE=$(git log -1 --format=%ai "$b" 2>/dev/null)
+      SUBJ=$(git log -1 --format=%s "$b" 2>/dev/null)
+      echo "  [UNMERGED] $b"
+      echo "             author:  $AUTHOR"
+      echo "             date:    $DATE"
+      echo "             subject: $SUBJ"
+    fi
+  fi
+done
+```
+
+**Decision rules:**
+
+| Output | Action |
+|---|---|
+| `[MERGED] task/X` | Safe to ignore. Work already on agent/web via a different SHA. Optionally `git branch -D task/X` to clean up clutter (operator's call). |
+| `[UNMERGED] task/X` with author = your own current session | This is YOUR WIP from earlier. Push it (`git push -u origin task/X`) for safety. Decide whether to merge / continue / discard. |
+| `[UNMERGED] task/X` with author = anyone else (operator, prior agent, unknown) | **STOP.** This is someone else's work. Do NOT push, merge, or delete. Surface to operator: "I see unmerged task branch X authored by Y on date Z with subject S — what do you want me to do?" Operator decides. |
+
+**Author attribution caveat:** the `author` field comes from local git
+config and CANNOT reliably distinguish "operator commit" from "agent
+commit on operator's machine" — both show as the operator's name. Use
+author + date + commit subject + your own session's memory together to
+identify provenance. If unsure, ASK.
+
+**Known state for this worktree (as of 2026-05-17 audit):** ~12 unmerged
+`task/*` branches exist locally, all authored by the operator
+(`Shawnkairu`). Their commit subjects match work already on `agent/web`
+via different SHAs (likely earlier drafts that got re-committed during
+the P0 phase merge). Treat them as operator-preserved history; do not
+push/merge/delete without explicit instruction.
+
+### If you were mid-task on a `task/...` branch before this rehydration
 
 ```sh
 git checkout task/<the-branch-you-were-on>
@@ -494,22 +542,25 @@ Mapping is shown below. Going forward (per §7), all commits start with
   screens, use `<RequiresReason>` wrapper for any mutation form — the
   backend rejects writes without a non-empty `reason` field (CR-2).
 - **2026-05-17 — agent/web was force-pushed to parity with main**
-  (coordinator hygiene; lost no remote work). Your local task branch
-  `task/P1.5.2-resident-energy-web-mirror` has a WIP commit `2b8d28f`
-  ("Mirror resident energy allocation on web") that was NEVER PUSHED.
-  When you resume, **first push that branch** to make the commit
-  recoverable, THEN rebase it on the new agent/web HEAD before
-  continuing:
-  ```sh
-  git checkout task/P1.5.2-resident-energy-web-mirror
-  git push -u origin task/P1.5.2-resident-energy-web-mirror   # SAFETY FIRST
-  git fetch origin
-  git rebase agent/web                                         # bring forward
-  git push --force-with-lease origin task/P1.5.2-resident-energy-web-mirror
-  # Then continue your work.
-  ```
-  See §7 "Push early, push often" for the discipline going forward —
-  local-only commits are at risk; pushed commits are safe.
+  (coordinator hygiene; lost no remote work). NOTE: An earlier version
+  of this ledger incorrectly attributed an in-progress task branch
+  (`task/P1.5.2-resident-energy-web-mirror`, commit `2b8d28f`) to you.
+  That commit was actually authored by the operator (Shawnkairu),
+  not by a Codex session. It has been pushed to origin
+  (`origin/task/P1.5.2-resident-energy-web-mirror`) for safety; you
+  should NOT pick that work up unless the operator explicitly assigns
+  it. Treat all `task/*` branches whose authorship you can't trace to
+  your own session as belonging to someone else (operator or prior
+  agent) and STOP to ask before acting on them.
+- **2026-05-17 — Orphan branch awareness**: your web worktree may have
+  several local `task/*` branches from prior sessions that were never
+  pushed (12 detected during a 2026-05-17 coordinator audit). All of
+  them have commit subjects matching work already on `agent/web` via
+  different SHAs, suggesting they were earlier drafts that got
+  re-committed during merge cleanup. They're harmless; coordinator
+  decided not to delete them (operator's work, preserve). Your §0
+  rehydration now lists them explicitly so you can ignore them with
+  confidence.
 
 ### Next on your queue (per BUILD_PLAN)
 - **P1.5.1** — `website/src/screens/stakeholders/resident/home.tsx` web mirror
