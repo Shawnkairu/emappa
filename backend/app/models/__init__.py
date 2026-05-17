@@ -4,8 +4,10 @@ Single Base lives in app.db.session. All models inherit from it. Importing this
 module ensures every model is registered with the metadata.
 """
 from ..db.session import Base
+from .admin import AdminAllowlist
 from .audit import AuditLog
 from .building import Building
+from .rbac import RbacClaim
 from .certification import Certification
 from .energy import EnergyReading
 from .financier import FinancierPosition
@@ -19,6 +21,7 @@ from .waitlist import WaitlistLead
 
 __all__ = [
     "Base",
+    "AdminAllowlist",
     "AuditLog",
     "Building",
     "Certification",
@@ -28,6 +31,7 @@ __all__ = [
     "Job",
     "OtpCode",
     "PrepaidCommitment",
+    "RbacClaim",
     "SettlementPeriod",
     "User",
     "WaitlistLead",
