@@ -262,4 +262,181 @@ function runSharedDomainTests() {
 }
 
 runSharedDomainTests();
+
+// ---- P0.0.4 type-contract lock smoke tests ---------------------------------
+// Construct one value of each new shape so a structural break fails `tsc`.
+// Plus a few runtime asserts on the const TTL table per ADR 0001 §4.
+
+import type {
+  AgentId,
+  AgentProposal,
+  AgentActionRecord,
+  AgentEvalRunRecord,
+  PiiClass,
+  PiiClaim,
+  AuditLogEntry,
+  AlertRecord,
+  IncidentRecord,
+  ApartmentAtsState,
+  LoadProfileCapture,
+  CapacityQueueEntry,
+  PledgeRecord,
+  TokenPurchaseRecord,
+  BoState,
+  HoState,
+  ProviderState,
+  HomeownerEdgeCaseId,
+  QuoteState,
+} from "./types";
+import { PII_CLAIM_TTL_SECONDS } from "./types";
+
+function runP004TypeLockTests() {
+  const agentId: AgentId = "drs";
+  const proposal: AgentProposal = {
+    agent_id: agentId,
+    agent_version: "0.0.1-stub",
+    proposed_action: "no-op",
+    confidence: 0.0,
+    evidence_uris: [],
+    rationale: "stub",
+  };
+  const action: AgentActionRecord = {
+    id: "aa-1",
+    proposal,
+    status: "pending_admin_approval",
+    audit_log_id: null,
+    decided_by: null,
+    decided_at: null,
+    decision_reason: null,
+    created_at: "2026-05-16T00:00:00.000Z",
+  };
+  const evalRun: AgentEvalRunRecord = {
+    id: "er-1",
+    agent_id: agentId,
+    agent_version: "0.0.1-stub",
+    scorecard: { precision: 0 },
+    regression_delta: { precision: 0 },
+    pass: true,
+    ts: "2026-05-16T00:00:00.000Z",
+  };
+
+  const pclass: PiiClass = "contact";
+  const claim: PiiClaim = {
+    subject_id: "u-1",
+    class: pclass,
+    granted_by: "admin-1",
+    granted_at: "2026-05-16T00:00:00.000Z",
+    expires_at: "2026-05-16T08:00:00.000Z",
+    reason: "triage",
+    incident_id: null,
+    step_up_verified_at: null,
+  };
+
+  const audit: AuditLogEntry = {
+    id: "al-1",
+    actor_id: "admin-1",
+    actor_kind: "user",
+    action: "pledge:create",
+    target_entity: "pledge",
+    target_id: "p-1",
+    before: null,
+    after: { amount_kes: 1000 },
+    reason: "test",
+    agent_attribution: null,
+    surface: "cockpit",
+    ts: "2026-05-16T00:00:00.000Z",
+  };
+
+  const alert: AlertRecord = {
+    id: "alert-1",
+    severity: "warning",
+    status: "open",
+    source: "settlement_runner",
+    owner_role: "admin",
+    building_id: null,
+    ts: "2026-05-16T00:00:00.000Z",
+    remediation_status: null,
+  };
+  const incident: IncidentRecord = {
+    id: "inc-1",
+    severity: "critical",
+    status: "investigating",
+    root_cause: null,
+    postmortem_uri: null,
+    alert_ids: [alert.id],
+    opened_at: "2026-05-16T00:00:00.000Z",
+    closed_at: null,
+  };
+
+  const ats: ApartmentAtsState = "active_solar";
+  const queue: CapacityQueueEntry = {
+    id: "cq-1",
+    building_id: "b-1",
+    user_id: "u-1",
+    status: "queued",
+    position: 3,
+    priority_factors: ["pledge_amount", "early_signup"],
+    joined_at: "2026-05-16T00:00:00.000Z",
+    cleared_at: null,
+    activated_at: null,
+  };
+  const lp: LoadProfileCapture = {
+    level: "L1",
+    appliances: [{ name: "lighting", watts: 60, hours_per_day: 5 }],
+    daytime_kwh: 2,
+    evening_kwh: 3,
+    receipt_url: null,
+    confidence: 0.4,
+  };
+
+  const pledge: PledgeRecord = {
+    id: "pl-1",
+    building_id: "b-1",
+    user_id: "u-1",
+    amount_kes: null,
+    status: "active",
+    created_at: "2026-05-16T00:00:00.000Z",
+    closed_at: null,
+  };
+  const purchase: TokenPurchaseRecord = {
+    id: "tp-1",
+    building_id: "b-1",
+    user_id: "u-1",
+    amount_kes: 500,
+    payment_method: "mpesa",
+    created_at: "2026-05-16T00:00:00.000Z",
+  };
+
+  const bo: BoState = "B7";
+  const ho: HoState = "H7";
+  const prov: ProviderState = "E8";
+  const edge: HomeownerEdgeCaseId = "HC3";
+  const qs: QuoteState = "expired_or_cancelled";
+
+  assert(PII_CLAIM_TTL_SECONDS.contact === 28800, "contact TTL = 8h per ADR 0001 §4");
+  assert(PII_CLAIM_TTL_SECONDS.identity === 14400, "identity TTL = 4h per ADR 0001 §4");
+  assert(PII_CLAIM_TTL_SECONDS.financial === 3600, "financial TTL = 1h per ADR 0001 §4");
+
+  // touch every constructed value so tsc doesn't tree-shake the type checks
+  const touched = [
+    action.id,
+    evalRun.id,
+    claim.subject_id,
+    audit.id,
+    incident.id,
+    ats,
+    queue.id,
+    lp.level,
+    pledge.id,
+    purchase.id,
+    bo,
+    ho,
+    prov,
+    edge,
+    qs,
+  ];
+  assert(touched.length === 15, "all P0.0.4 lock-batch types constructed");
+}
+
+runP004TypeLockTests();
 console.log("Shared domain tests passed.");

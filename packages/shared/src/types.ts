@@ -94,6 +94,8 @@ export type CapacityQueueStatus =
   | "waitlisted"
   | "activated";
 
+// 9 states per IA_SPEC Reference Appendix A.9 (Scenario E §7.1).
+// `expired` and `cancelled` are a single terminal state in the spec.
 export type QuoteState =
   | "draft"
   | "submitted"
@@ -103,8 +105,7 @@ export type QuoteState =
   | "committed"
   | "delivered"
   | "installed_activated"
-  | "expired"
-  | "cancelled";
+  | "expired_or_cancelled";
 
 export type ElectricianCertificationTier =
   | "helper"
@@ -508,6 +509,251 @@ export interface SettlementPeriod {
   dataSource: "synthetic" | "measured" | "mixed";
   createdAt: string;
 }
+
+// =============================================================================
+// P0.0.4 type-contract lock batch (2026-05-16)
+// Adds types required by P0.0.3 + P0.3.* + P1.* tasks. Per-phase additions for
+// later phases (homeowner authority, host-royalty payout, provider verification,
+// escrow, etc.) land at phase entry with coordinator approval.
+// =============================================================================
+
+// ---- AI-native agent contract (DONE_DEFINITION §AI agent backend skeleton A2)
+
+export type AgentId =
+  | "drs"
+  | "lbrs"
+  | "settlement"
+  | "alert_triage"
+  | "eligibility";
+
+export interface AgentProposal {
+  agent_id: AgentId;
+  agent_version: string;
+  proposed_action: string;
+  /** 0.0–1.0 */
+  confidence: number;
+  evidence_uris: string[];
+  rationale: string;
+}
+
+export type AgentActionStatus =
+  | "pending_admin_approval"
+  | "accepted"
+  | "rejected";
+
+export interface AgentActionRecord {
+  id: string;
+  proposal: AgentProposal;
+  status: AgentActionStatus;
+  audit_log_id: string | null;
+  decided_by: string | null;
+  decided_at: string | null;
+  decision_reason: string | null;
+  created_at: string;
+}
+
+export interface AgentEvalRunRecord {
+  id: string;
+  agent_id: AgentId;
+  agent_version: string;
+  scorecard: Record<string, number>;
+  /** Δ vs previous run, per metric */
+  regression_delta: Record<string, number>;
+  pass: boolean;
+  ts: string;
+}
+
+// ---- PII view-claim contract (ADR 0001 stricter variant)
+
+export type PiiClass = "contact" | "identity" | "financial";
+
+/** TTL in seconds per ADR 0001 §4: contact 8h, identity 4h, financial 1h. */
+export const PII_CLAIM_TTL_SECONDS: Record<PiiClass, number> = {
+  contact: 28800,
+  identity: 14400,
+  financial: 3600,
+};
+
+export interface PiiClaim {
+  subject_id: string;
+  class: PiiClass;
+  granted_by: string;
+  granted_at: string;
+  expires_at: string;
+  reason: string;
+  /** Required for `identity` + `financial` per ADR 0001 §4 */
+  incident_id: string | null;
+  /** Required for `financial` per ADR 0001 §5 — 5-min fresh window */
+  step_up_verified_at: string | null;
+}
+
+// ---- Audit log (CR-2, P0.3.1)
+
+export type AuditActorKind = "user" | "agent" | "system";
+
+/** Free-form for now; documented namespace pattern: <resource>:<verb> */
+export type AuditAction = string;
+
+export interface AuditLogEntry {
+  id: string;
+  actor_id: string;
+  actor_kind: AuditActorKind;
+  action: AuditAction;
+  target_entity: string;
+  target_id: string;
+  before: Record<string, unknown> | null;
+  after: Record<string, unknown> | null;
+  reason: string;
+  /** Set when actor_kind === 'agent' */
+  agent_attribution: AgentId | null;
+  surface: string;
+  ts: string;
+}
+
+// ---- Alerts / incidents (AI-native §6, P0.3.8 / P0.3.9)
+
+export type AlertSeverity = "info" | "warning" | "critical" | "page";
+
+export type AlertStatus = "open" | "acknowledged" | "remediating" | "resolved";
+
+export interface AlertRecord {
+  id: string;
+  severity: AlertSeverity;
+  status: AlertStatus;
+  source: string;
+  owner_role: PublicRole | "admin";
+  building_id: string | null;
+  ts: string;
+  remediation_status: string | null;
+}
+
+export type IncidentStatus = "open" | "investigating" | "remediating" | "resolved" | "postmortem";
+
+export interface IncidentRecord {
+  id: string;
+  severity: AlertSeverity;
+  status: IncidentStatus;
+  root_cause: string | null;
+  postmortem_uri: string | null;
+  alert_ids: string[];
+  opened_at: string;
+  closed_at: string | null;
+}
+
+// ---- Scenario A — apartment ATS state machine (§2.1) + load profile (§7)
+
+/**
+ * 8-state per-apartment ATS machine, Scenario A §2.1.
+ * `active_solar` and `active_kplc` are the two normal supply modes;
+ * `throttled` enforces prepaid-balance limits without isolation.
+ */
+export type ApartmentAtsState =
+  | "pre_install"
+  | "installed_not_activated"
+  | "active_solar"
+  | "active_kplc"
+  | "throttled"
+  | "isolated"
+  | "fault"
+  | "suspended";
+
+export type LoadProfileLevel = "L1" | "L2" | "L3";
+
+export interface LoadProfileAppliance {
+  name: string;
+  watts: number;
+  hours_per_day: number;
+}
+
+export interface LoadProfileCapture {
+  level: LoadProfileLevel;
+  appliances: LoadProfileAppliance[];
+  daytime_kwh: number;
+  evening_kwh: number;
+  receipt_url: string | null;
+  confidence: number;
+}
+
+// ---- Scenario A — capacity queue priority factors (§6.3)
+
+/** Spec §6.3 priority factors that influence capacity_queue ordering. */
+export type CapacityQueuePriorityFactor =
+  | "pledge_amount"
+  | "load_profile_fit"
+  | "early_signup"
+  | "geographic_cluster";
+
+export interface CapacityQueueEntry {
+  id: string;
+  building_id: string;
+  user_id: string;
+  status: CapacityQueueStatus;
+  position: number;
+  priority_factors: CapacityQueuePriorityFactor[];
+  joined_at: string;
+  cleared_at: string | null;
+  activated_at: string | null;
+}
+
+// ---- Pledge vs token split (ADR 0002, P0.3.15)
+
+export type PledgeStatus = "active" | "cancelled" | "converted";
+
+export interface PledgeRecord {
+  id: string;
+  building_id: string;
+  user_id: string;
+  /** Nullable: residents may pledge intent before specifying amount */
+  amount_kes: number | null;
+  status: PledgeStatus;
+  created_at: string;
+  /** Set when status transitions to 'cancelled' or 'converted' */
+  closed_at: string | null;
+}
+
+export interface TokenPurchaseRecord {
+  id: string;
+  building_id: string;
+  user_id: string;
+  /** NOT NULL — real money */
+  amount_kes: number;
+  payment_method: "mpesa" | "card" | "bank";
+  /** Immutable; no closed/cancelled — refunds are separate ledger entries */
+  created_at: string;
+}
+
+// ---- State machine ids (Reference Appendix A.1–A.3, A.7)
+
+/** Scenario B §4 / Reference Appendix A.1 */
+export type BoState = "B0" | "B1" | "B2" | "B3" | "B4" | "B5" | "B6" | "B7" | "B8" | "B9";
+
+/** Scenario C §5 / Reference Appendix A.2 */
+export type HoState = "H0" | "H1" | "H2" | "H3" | "H4" | "H5" | "H6" | "H7" | "H8";
+
+/** Scenario E §13 / Reference Appendix A.3 */
+export type ProviderState =
+  | "E0" | "E1" | "E2" | "E3" | "E4" | "E5" | "E6" | "E7" | "E8" | "E9" | "E10";
+
+/** Scenario C §15 / Reference Appendix A.7 — 8 edge cases */
+export type HomeownerEdgeCaseId =
+  | "HC1" | "HC2" | "HC3" | "HC4" | "HC5" | "HC6" | "HC7" | "HC8";
+
+// ---- RBAC scope (P0.3.3, P0.3.6, CR-7)
+
+/**
+ * Free-form string with the documented namespace pattern:
+ *   pii:view:<contact|identity|financial>
+ *   queue:<drs|lbrs|provider|electrician|financier|doc|counterparties>
+ *   settlement:<run|hold|approve>
+ *   admin:<grant_pii|approve_pii:financial|...>
+ *
+ * Per ADR 0001 §6, agent JWTs hold zero `pii:view:*` scopes.
+ */
+export type RbacScope = string;
+
+// =============================================================================
+// END P0.0.4 lock batch
+// =============================================================================
 
 // Building extension fields per IA + roof capture flow.
 // Existing BuildingProject is the projector domain object; this is the persisted-record shape

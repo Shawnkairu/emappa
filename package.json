@@ -25,6 +25,7 @@
     "seed": "cd backend && EMAPPA_DEV_SEED=true .venv/bin/python -m scripts.seed",
     "grant:admin": "cd backend && .venv/bin/python -m scripts.grant_admin",
     "audit:shared": "npm run audit --workspace @emappa/shared",
+    "audit:missing": "node scripts/audit-missing.mjs",
     "test": "npm run test --workspace @emappa/shared",
     "test:shared": "npm run test --workspace @emappa/shared",
     "typecheck": "turbo typecheck",

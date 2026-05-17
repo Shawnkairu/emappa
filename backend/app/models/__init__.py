@@ -4,8 +4,19 @@ Single Base lives in app.db.session. All models inherit from it. Importing this
 module ensures every model is registered with the metadata.
 """
 from ..db.session import Base
+from .admin import AdminAllowlist
+from .agent_action import AgentAction
+from .agent_eval import AgentEvalRun
+from .alert import Alert
+from .ats import ApartmentAtsState
 from .audit import AuditLog
 from .building import Building
+from .capacity_queue import CapacityQueue
+from .incident import Incident
+from .load_profile import LoadProfile
+from .pledge import Pledge
+from .rbac import RbacClaim
+from .token_purchase import TokenPurchase
 from .certification import Certification
 from .energy import EnergyReading
 from .financier import FinancierPosition
@@ -19,16 +30,27 @@ from .waitlist import WaitlistLead
 
 __all__ = [
     "Base",
+    "AdminAllowlist",
+    "AgentAction",
+    "AgentEvalRun",
+    "Alert",
+    "ApartmentAtsState",
     "AuditLog",
     "Building",
+    "CapacityQueue",
     "Certification",
     "EnergyReading",
     "FinancierPosition",
+    "Incident",
     "InventoryItem",
     "Job",
+    "LoadProfile",
     "OtpCode",
+    "Pledge",
     "PrepaidCommitment",
+    "RbacClaim",
     "SettlementPeriod",
+    "TokenPurchase",
     "User",
     "WaitlistLead",
     "WalletTransaction",
