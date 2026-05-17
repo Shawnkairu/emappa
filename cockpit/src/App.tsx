@@ -1,5 +1,6 @@
 import { lazy, Suspense, useEffect, useMemo, useState } from "react";
 import type { FormEvent } from "react";
+import { NavLink, useLocation, useNavigate } from "react-router-dom";
 import {
   compareSyntheticScenarioOutcomes,
   replaySyntheticScenario,
@@ -23,23 +24,24 @@ import {
 import { PilotBanner } from "./components/PilotBanner";
 import type { SyntheticMode } from "./components/SyntheticBadge";
 import { BuildingDetail } from "./pages/BuildingDetail";
+import { cockpitRoutes } from "./routes";
 
 const StressTest = lazy(() => import("./stress-test/StressTest.jsx"));
 
-type View = "command" | "stress";
 type StageFilter = "all" | ProjectedBuilding["project"]["stage"];
 type DecisionFilter = "all" | ProjectedBuilding["drs"]["decision"];
 type Session = ReturnType<typeof loadSession>;
 
-const navItems: Array<{ id: View; label: string }> = [
-  { id: "command", label: "Command" },
-  { id: "stress", label: "Stress Test" },
+const navItems: Array<{ to: string; label: string; end?: boolean }> = [
+  { to: cockpitRoutes.command, label: "Command", end: true },
+  { to: cockpitRoutes.stress, label: "Stress Test" },
 ];
 
 export function App() {
+  const location = useLocation();
+  const navigate = useNavigate();
   const [session, setSession] = useState<Session>(() => loadSession());
   const [checkingSession, setCheckingSession] = useState(Boolean(session));
-  const [view, setView] = useState<View>("command");
   const [projects, setProjects] = useState<ProjectedBuilding[]>([]);
   const [settlementDates, setSettlementDates] = useState<Record<string, SettlementPeriod | null>>({});
   const [selectedProjectId, setSelectedProjectId] = useState<string | null>(null);
@@ -52,6 +54,8 @@ export function App() {
   const [syntheticMode, setSyntheticMode] = useState<SyntheticMode>("mixed");
   const [loading, setLoading] = useState(false);
   const [error, setError] = useState<string | null>(null);
+  const buildingRouteProjectId = getRouteProjectId(location.pathname);
+  const isStressRoute = location.pathname === cockpitRoutes.stress;
 
   useEffect(() => {
     if (!session) {
@@ -102,6 +106,19 @@ export function App() {
       .catch((loadError: Error) => setError(loadError.message))
       .finally(() => setLoading(false));
   }, [session?.token, session?.user.role]);
+
+  useEffect(() => {
+    if (buildingRouteProjectId) {
+      setSelectedProjectId(buildingRouteProjectId);
+    }
+  }, [buildingRouteProjectId]);
+
+  useEffect(() => {
+    const knownRoute = location.pathname === cockpitRoutes.command || location.pathname === cockpitRoutes.stress || buildingRouteProjectId;
+    if (!knownRoute) {
+      navigate(cockpitRoutes.command, { replace: true });
+    }
+  }, [buildingRouteProjectId, location.pathname, navigate]);
 
   const syntheticScenario = useMemo(
     () => replaySyntheticScenario({ phase: scenarioPhase, failureMode: scenarioFailureMode }),
@@ -188,9 +205,14 @@ export function App() {
         <span className="session-meta">{session.user.email}</span>
         <nav>
           {navItems.map((item) => (
-            <button key={item.id} className={view === item.id ? "active" : ""} onClick={() => setView(item.id)}>
+            <NavLink
+              key={item.to}
+              className={({ isActive }) => (isActive || (item.to === cockpitRoutes.command && buildingRouteProjectId) ? "active" : undefined)}
+              end={item.end}
+              to={item.to}
+            >
               {item.label}
-            </button>
+            </NavLink>
           ))}
           <span>DRS Queue</span>
           <span>Settlement</span>
@@ -219,7 +241,7 @@ export function App() {
           </label>
         </div>
 
-        {view === "stress" ? (
+        {isStressRoute ? (
           <Suspense fallback={<div className="panel loading-panel">Loading stress-test cockpit...</div>}>
             <StressTest initialProject={projects[0]} />
           </Suspense>
@@ -279,7 +301,10 @@ export function App() {
                       <button
                         key={item.project.id}
                         className={`portfolio-row ${selectedProject?.project.id === item.project.id ? "active" : ""}`}
-                        onClick={() => setSelectedProjectId(item.project.id)}
+                        onClick={() => {
+                          setSelectedProjectId(item.project.id);
+                          navigate(cockpitRoutes.building(item.project.id));
+                        }}
                         type="button"
                       >
                         <span>
@@ -453,4 +478,9 @@ function Metric({ label, value }: { label: string; value: string }) {
 
 function formatDate(value: string) {
   return new Intl.DateTimeFormat("en", { month: "short", day: "numeric" }).format(new Date(value));
+}
+
+function getRouteProjectId(pathname: string) {
+  const match = pathname.match(/^\/buildings\/([^/]+)/);
+  return match ? decodeURIComponent(match[1]) : null;
 }
