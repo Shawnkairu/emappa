@@ -1,5 +1,5 @@
-import { InstallerEarningsScreen } from "../../components/installer/InstallerScreens";
+import { ElectricianEarningsScreen } from "../../components/electrician/ElectricianScreens";
 
 export default function ElectricianWalletScreen() {
-  return <InstallerEarningsScreen />;
+  return <ElectricianEarningsScreen />;
 }

@@ -1,3 +1,3 @@
-import { ProviderCommitCapacityScreen } from "../../components/proposed-flow/ProviderCommitCapacityScreen";
+import { ProviderCommitCapacityScreen } from "../../components/provider/ProviderCommitCapacityScreen";
 
 export default ProviderCommitCapacityScreen;

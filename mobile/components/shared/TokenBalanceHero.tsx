@@ -5,17 +5,33 @@ export interface TokenBalanceHeroProps {
   eyebrow?: string;
   title?: string;
   subtitle?: string;
+  /** Cash balance (KES) — IA dual KES + kWh hero. */
+  kesLabel?: string;
+  kesValue?: string;
+  /** Energy allocation (kWh). */
+  kwhLabel?: string;
+  kwhValue?: string;
+  /** @deprecated Use kwhLabel/kwhValue — kept for existing callers. */
   tokenLabel?: string;
+  /** @deprecated Use kwhValue. */
   tokenValue?: string;
+  disabled?: boolean;
 }
 
 export function TokenBalanceHero({
   eyebrow = "e.mappa token",
   title = "Prepaid solar allocation",
   subtitle = "Track readiness, ownership, and payout state before any allocation goes live.",
+  kesLabel = "Pledged balance",
+  kesValue = "KSh 0",
+  kwhLabel,
+  kwhValue,
   tokenLabel = "Available allocation",
   tokenValue = "0 kWh",
+  disabled = false,
 }: TokenBalanceHeroProps) {
+  const energyLabel = kwhLabel ?? tokenLabel;
+  const energyValue = kwhValue ?? tokenValue;
   return (
     <View style={styles.card}>
       <View style={styles.topRow}>
@@ -23,17 +39,19 @@ export function TokenBalanceHero({
           <View style={styles.dot} />
           <Text style={styles.eyebrow}>{eyebrow}</Text>
         </View>
-        <Text style={styles.status}>cash gated</Text>
+        <Text style={styles.status}>{disabled ? "pre-live" : "cash gated"}</Text>
       </View>
       <Text style={styles.title}>{title}</Text>
       <Text style={styles.subtitle}>{subtitle}</Text>
-      <View style={styles.tokenPanel}>
-        <View>
-          <Text style={styles.tokenLabel}>{tokenLabel}</Text>
-          <Text style={styles.tokenValue}>{tokenValue}</Text>
+      <View style={styles.balanceRow}>
+        <View style={styles.balanceCell}>
+          <Text style={styles.tokenLabel}>{kesLabel}</Text>
+          <Text style={styles.tokenValue}>{disabled ? "—" : kesValue}</Text>
         </View>
-        <View style={styles.miniMeter}>
-          <View style={styles.miniMeterFill} />
+        <View style={styles.balanceDivider} />
+        <View style={styles.balanceCell}>
+          <Text style={styles.tokenLabel}>{energyLabel}</Text>
+          <Text style={styles.tokenValue}>{disabled ? "—" : energyValue}</Text>
         </View>
       </View>
     </View>
@@ -101,16 +119,21 @@ const styles = StyleSheet.create({
     fontSize: 15,
     lineHeight: 22,
   },
-  tokenPanel: {
-    alignItems: "center",
+  balanceRow: {
     flexDirection: "row",
-    justifyContent: "space-between",
-    gap: spacing.md,
+    alignItems: "stretch",
+    gap: spacing.sm,
     borderRadius: 24,
     backgroundColor: "rgba(255, 255, 255, 0.72)",
     borderColor: "rgba(118, 73, 39, 0.12)",
     borderWidth: 1,
     padding: 14,
+  },
+  balanceCell: { flex: 1, gap: 3 },
+  balanceDivider: {
+    width: 1,
+    backgroundColor: "rgba(118, 73, 39, 0.12)",
+    marginVertical: 2,
   },
   tokenLabel: {
     color: colors.muted,
@@ -125,19 +148,5 @@ const styles = StyleSheet.create({
     fontWeight: "800",
     letterSpacing: -0.5,
     marginTop: 3,
-  },
-  miniMeter: {
-    justifyContent: "flex-end",
-    overflow: "hidden",
-    width: 58,
-    height: 58,
-    borderRadius: 18,
-    backgroundColor: `${officialPalette.furCream}70`,
-    borderColor: "rgba(118, 73, 39, 0.12)",
-    borderWidth: 1,
-  },
-  miniMeterFill: {
-    height: "48%",
-    backgroundColor: colors.orangeDeep,
   },
 });

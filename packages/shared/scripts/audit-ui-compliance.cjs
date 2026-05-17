@@ -10,7 +10,7 @@ const sections = {
   homeowner: ["home", "energy", "wallet", "profile"],
   building_owner: ["home", "energy", "wallet", "profile"],
   provider: ["discover", "projects", "generation", "wallet", "profile"],
-  electrician: ["discover", "jobs", "wallet", "profile"],
+  electrician: ["discover", "projects", "wallet", "profile"],
   financier: ["discover", "portfolio", "generation", "wallet", "profile"],
 };
 
@@ -60,6 +60,12 @@ function rel(file) {
   return path.relative(repoRoot, file);
 }
 
+/** Mobile IA uses `projects`; web loaders/screens remain `jobs` until IA-U10 web parity updates. */
+function electricianWebStakeholderFilename(role, section) {
+  if (role === "electrician" && section === "projects") return "jobs";
+  return section;
+}
+
 function auditRouteParity() {
   const websiteApp = read("website/src/App.tsx");
   const webApi = read("website/src/lib/api.ts");
@@ -68,9 +74,14 @@ function auditRouteParity() {
   for (const role of publicRoles) {
     for (const section of sections[role]) {
       assertFile(`mobile/app/${mobileRoleFolder[role]}/${section}.tsx`, `IA-U10 mobile ${role}/${section}`);
-      assertFile(`website/src/screens/stakeholders/${websiteRoleFolder[role]}/${section}.tsx`, `IA-U10 web ${role}/${section}`);
+      const webScreenFile = electricianWebStakeholderFilename(role, section);
+      assertFile(
+        `website/src/screens/stakeholders/${websiteRoleFolder[role]}/${webScreenFile}.tsx`,
+        `IA-U10 web ${role}/${webScreenFile}`,
+      );
 
-      const rolePattern = new RegExp(`${role}\\s*:\\s*\\{[\\s\\S]*?${section}\\s*:\\s*lazy\\(`);
+      const loaderKey = electricianWebStakeholderFilename(role, section);
+      const rolePattern = new RegExp(`${role}\\s*:\\s*\\{[\\s\\S]*?${loaderKey}\\s*:\\s*lazy\\(`);
       if (!rolePattern.test(websiteApp)) {
         issues.push(`IA-U10 web loader: ${role}/${section} missing from screenLoaders`);
       }

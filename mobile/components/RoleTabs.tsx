@@ -9,7 +9,6 @@ const icons: Record<string, keyof typeof Ionicons.glyphMap> = {
   home: "home-outline",
   discover: "compass-outline",
   jobs: "construct-outline",
-  compliance: "ribbon-outline",
   wallet: "wallet-outline",
   usage: "pulse-outline",
   energy: "flash-outline",
@@ -43,8 +42,7 @@ function TabBarChromeBackground() {
 
 const hiddenTabRoutes: Partial<Record<StakeholderRole, string[]>> = {
   provider: ["inventory", "qualified-projects", "commit-capacity", "accept-terms", "deployment", "maintenance", "performance"],
-  financier: ["tranche-release"],
-  electrician: ["jobs-inbox", "compliance"],
+  financier: ["_embedded"],
   building_owner: ["compare-today", "resident-roster", "approve-terms", "owner-account"],
 };
 

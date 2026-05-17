@@ -1,3 +1,3 @@
-import { OwnerApproveTermsScreen } from "../../../components/owner/OwnerApproveTermsScreen";
+import { BuildingOwnerApproveTermsScreen } from "../../../components/building-owner/BuildingOwnerScreens";
 
-export default OwnerApproveTermsScreen;
+export default BuildingOwnerApproveTermsScreen;
