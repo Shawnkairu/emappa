@@ -70,6 +70,8 @@ AUDIT_REQUIRED_PATHS: tuple[re.Pattern[str], ...] = (
     # P1.6.3–6 — resident mutation routes (Scenario A §6, §7).
     re.compile(r"^/residents/[^/]+/load-profile$"),
     re.compile(r"^/residents/[^/]+/queue-request$"),
+    # P2.6.1 — homeowner authority docs (Scenario C §6 step 5).
+    re.compile(r"^/homeowner/[^/]+/authority-docs$"),
 )
 
 
