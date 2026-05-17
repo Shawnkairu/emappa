@@ -17,7 +17,7 @@
 
 > **Granularity note.** MISSING.md currently aggregates ~227 IA_SPEC named artifacts into ~38 grouped rows for operational readability. BUILD_PLAN.md cuts the same backlog into ~390 task IDs (P0.0.1 ... P9.1.24) for assignment. The two are consistent but not 1:1; treat BUILD_PLAN task IDs as the unit of work assignment, and MISSING.md as the rollup tally for burndown reporting.
 
-> **2026-05-16 update.** Four STALE rows landed as part of [BUILD_PLAN.md §P0.1](BUILD_PLAN.md#p01-structural-cleanup-stale-rows-from-missingmd-naming-structural-drift): `DrsCard → mobile/components/shared/DRSProgressCard.tsx` (P0.1.8), `TokenHero → mobile/components/shared/TokenBalanceHero.tsx` (P0.1.9, also renamed in `website/src/portal/PortalWidgets.tsx`), `(auth)/verify-phone.tsx → verify-otp.tsx` (P0.1.10, with 3 importers updated + RoleTabs admin hidden-tab cleanup), `(admin)/home.tsx` deleted (P0.1.4). **`owner/ → building-owner/`** done **2026-05-17** (P0.1.6): consolidated under `mobile/components/building-owner/`; embedded routes use API-backed screens in `BuildingOwnerScreens.tsx`; deleted duplicate `owner/` + `proposed-flow/Owner*` scaffolds. P3 spec components (HostRoyaltyCard, etc.) remain separate MISSING rows.
+> **2026-05-16 update.** Four STALE rows landed as part of [BUILD_PLAN.md §P0.1](BUILD_PLAN.md#p01-structural-cleanup-stale-rows-from-missingmd-naming-structural-drift): `DrsCard → mobile/components/shared/DRSProgressCard.tsx` (P0.1.8), `TokenHero → mobile/components/shared/TokenBalanceHero.tsx` (P0.1.9, also renamed in `website/src/portal/PortalWidgets.tsx`), `(auth)/verify-phone.tsx → verify-otp.tsx` (P0.1.10, with 3 importers updated + RoleTabs admin hidden-tab cleanup), `(admin)/home.tsx` deleted (P0.1.4). **`installer/ → electrician/`** done **2026-05-17** (P0.1.5). **`owner/ → building-owner/`** done **2026-05-17** (P0.1.6): consolidated under `mobile/components/building-owner/`; embedded routes use API-backed screens in `BuildingOwnerScreens.tsx`; deleted duplicate `owner/` + `proposed-flow/Owner*` scaffolds. P3 spec components (HostRoyaltyCard, etc.) remain separate MISSING rows.
 
 ---
 
@@ -275,12 +275,12 @@
 | Spec | Target | Status | Notes |
 |---|---|---|---|
 | IA §Electrician · Discover | `mobile/app/(electrician)/discover.tsx` | PARTIAL | Job-style card needs scope/crew/urgency fields per §9 |
-| IA §Electrician · Projects (task board) | `mobile/app/(electrician)/jobs.tsx` | STALE | Naming: "jobs" vs spec "Projects"; task board, LBRS test checklist, signoff grid not built |
+| IA §Electrician · Projects (task board) | `mobile/app/(electrician)/projects.tsx` | PARTIAL | Naming: registry id `jobs` vs route basename `projects` (IA-U10); task board fidelity still partial |
 | IA §Electrician · Wallet (8 sections) | `mobile/app/(electrician)/wallet.tsx` | PARTIAL | DRS payout, milestone payouts, LBRS payout, labor-as-capital, household requests, maintenance reserve, disputes, history — most missing |
-| IA §Electrician · Profile | `mobile/app/(electrician)/profile.tsx` | PARTIAL | Certification tier, crew, ratings, compliance per §4 |
+| IA §Electrician · Profile | `mobile/app/(electrician)/profile.tsx` | PARTIAL | Tier, crew depth, ratings, full §4 onboarding still partial; compliance block embedded (P0.1.2) |
 | Web parity | `website/src/screens/stakeholders/electrician/*` | PARTIAL |
-| `jobs-inbox.tsx` route | extra | STALE — not in spec; consolidate into Projects per IA-U1 |
-| `compliance.tsx` tab | extra | STALE — IA-U7 mandates compliance embedded in Profile, not a tab |
+| ~~`jobs-inbox.tsx` route~~ | extra | **DONE** — consolidated per P0.1.1 |
+| ~~`compliance.tsx` tab~~ | extra | **DONE P0.1.2** — inlined in Profile; route removed |
 | Embedded · project-detail | MISSING |
 | Embedded · task-detail | MISSING |
 | Embedded · test-detail (LBRS) | MISSING |
@@ -593,11 +593,11 @@ Most already enumerated above. Remaining cross-role universals:
 
 | Current | Spec | Action | Status |
 |---|---|---|---|
-| `(electrician)/jobs.tsx` + `jobs-inbox.tsx` | `(electrician)/projects.tsx` | Rename + consolidate | Pending (P0.1.1) |
-| `(electrician)/compliance.tsx` (tab) | embedded inside Profile per IA-U7 | Move into Profile | Pending (P0.1.2) |
+| ~~`(electrician)/jobs.tsx` + `jobs-inbox.tsx`~~ | `(electrician)/projects.tsx` | Rename + consolidate | **DONE 2026-05-16** (P0.1.1) |
+| ~~`(electrician)/compliance.tsx` (tab)~~ | embedded inside Profile per IA-U7 | Move into Profile | **DONE 2026-05-16** (P0.1.2) |
 | `(financier)/tranche-release.tsx` (tab/route) | embedded inside portfolio detail | Move into Project Status detail | Pending (P0.1.3) |
 | ~~`(admin)/home.tsx` (4th tab)~~ | only 3 tabs (Alerts/Projects/Profile) | Remove | **DONE 2026-05-16** (P0.1.4) |
-| `mobile/components/installer/*` (whole folder) | role is "Electrician" not "Installer" per §Role Naming | Rename folder + components | Pending (P0.1.5) — folder will be replaced by P5 components |
+| ~~`mobile/components/installer/*` (whole folder)~~ | role is "Electrician" not "Installer" per §Role Naming | Rename folder + components | **DONE 2026-05-17** (P0.1.5) → `mobile/components/electrician/`; `Installer*` → `Electrician*`; deleted unused checklist/job-detail/maintenance scaffolds (P5 replacements) |
 | ~~`mobile/components/owner/*` (whole folder)~~ | role is "Building Owner" | Rename folder + components | **DONE 2026-05-17** (P0.1.6) → `mobile/components/building-owner/`; `Owner*` → `BuildingOwner*`; deleted duplicate home/earnings/list-building + `proposed-flow/Owner*` scaffolds |
 | `mobile/components/proposed-flow/*` | sandbox; not in spec | Either promote/delete | Pending (P0.1.7) |
 | ~~`mobile/components/DrsCard.tsx`~~ | spec name `DRSProgressCard` | Rename | **DONE 2026-05-16** → `mobile/components/shared/DRSProgressCard.tsx` (P0.1.8) |

@@ -2,17 +2,17 @@ import { Text, View } from "react-native";
 import { typography } from "@emappa/ui";
 import {
   colors,
-  InstallerActionList,
-  InstallerMetricCard,
-  InstallerScaffold,
+  ElectricianActionList,
+  ElectricianMetricCard,
+  ElectricianScaffold,
   Label,
   Pill,
   GlassCard,
-} from "./InstallerShared";
+} from "./ElectricianShared";
 
-export function InstallerEarningsScreen() {
+export function ElectricianEarningsScreen() {
   return (
-    <InstallerScaffold
+    <ElectricianScaffold
       section="Pay"
       title="Job Pay"
       subtitle="Proof unlocks payout."
@@ -47,14 +47,14 @@ export function InstallerEarningsScreen() {
 
             <View style={{ flexDirection: "row", gap: 12 }}>
               <View style={{ flex: 1 }}>
-                <InstallerMetricCard label="Estimate" value="KES 84k" detail="Current scope." />
+                <ElectricianMetricCard label="Estimate" value="KES 84k" detail="Current scope." />
               </View>
               <View style={{ flex: 1 }}>
-                <InstallerMetricCard label="Proof" value={`${view.checklistComplete}/${view.checklistTotal}`} detail="Closeout." />
+                <ElectricianMetricCard label="Proof" value={`${view.checklistComplete}/${view.checklistTotal}`} detail="Closeout." />
               </View>
             </View>
 
-            <InstallerActionList
+            <ElectricianActionList
               eyebrow="Payout gates"
               title="What unlocks pay"
               items={[
@@ -66,6 +66,6 @@ export function InstallerEarningsScreen() {
           </>
         );
       }}
-    </InstallerScaffold>
+    </ElectricianScaffold>
   );
 }
