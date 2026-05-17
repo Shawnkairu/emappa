@@ -6,9 +6,12 @@ module ensures every model is registered with the metadata.
 from ..db.session import Base
 from .admin import AdminAllowlist
 from .alert import Alert
+from .ats import ApartmentAtsState
 from .audit import AuditLog
 from .building import Building
+from .capacity_queue import CapacityQueue
 from .incident import Incident
+from .load_profile import LoadProfile
 from .rbac import RbacClaim
 from .certification import Certification
 from .energy import EnergyReading
@@ -25,14 +28,17 @@ __all__ = [
     "Base",
     "AdminAllowlist",
     "Alert",
+    "ApartmentAtsState",
     "AuditLog",
     "Building",
+    "CapacityQueue",
     "Certification",
     "EnergyReading",
     "FinancierPosition",
     "Incident",
     "InventoryItem",
     "Job",
+    "LoadProfile",
     "OtpCode",
     "PrepaidCommitment",
     "RbacClaim",
