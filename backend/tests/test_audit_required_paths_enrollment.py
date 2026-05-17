@@ -67,6 +67,8 @@ def test_required_paths_covers_expected_routes():
         r"^/residents/[^/]+/queue-request$",
         # P2.6.1 — homeowner authority docs.
         r"^/homeowner/[^/]+/authority-docs$",
+        # P2.6.2 — homeowner utility context.
+        r"^/homeowner/[^/]+/utility-context$",
     }
     actual = {p.pattern for p in AUDIT_REQUIRED_PATHS}
     missing = expected - actual

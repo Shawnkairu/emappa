@@ -72,6 +72,8 @@ AUDIT_REQUIRED_PATHS: tuple[re.Pattern[str], ...] = (
     re.compile(r"^/residents/[^/]+/queue-request$"),
     # P2.6.1 — homeowner authority docs (Scenario C §6 step 5).
     re.compile(r"^/homeowner/[^/]+/authority-docs$"),
+    # P2.6.2 — homeowner utility context (Scenario C §6 step 6).
+    re.compile(r"^/homeowner/[^/]+/utility-context$"),
 )
 
 
