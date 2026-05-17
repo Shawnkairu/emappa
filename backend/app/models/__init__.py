@@ -5,8 +5,10 @@ module ensures every model is registered with the metadata.
 """
 from ..db.session import Base
 from .admin import AdminAllowlist
+from .alert import Alert
 from .audit import AuditLog
 from .building import Building
+from .incident import Incident
 from .rbac import RbacClaim
 from .certification import Certification
 from .energy import EnergyReading
@@ -22,11 +24,13 @@ from .waitlist import WaitlistLead
 __all__ = [
     "Base",
     "AdminAllowlist",
+    "Alert",
     "AuditLog",
     "Building",
     "Certification",
     "EnergyReading",
     "FinancierPosition",
+    "Incident",
     "InventoryItem",
     "Job",
     "OtpCode",
