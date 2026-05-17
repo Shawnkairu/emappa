@@ -556,7 +556,7 @@ Most already enumerated above. Remaining cross-role universals:
 | `pledge` (non-binding pre-activation) | Scenario A §5 | PARTIAL — prepaid commit conflates pledge+purchase |
 | `token_purchase` (real money post-activation) | Scenario A §5 | PARTIAL |
 | `host_royalty_payout` | Scenario B §5/§6 | MISSING |
-| `homeowner_authority` (title/lease/ID + status) | Scenario C §6 | MISSING |
+| `homeowner_authority` (title/lease/ID + status) | Scenario C §6 | EXISTS — `models/homeowner_authority.py` + migration 0009 (P2.6.6) |
 | `provider_verification` (8-decision) | Scenario E §5 + §11 SupplierBusinessVerification | MISSING |
 | `provider_inventory_sku` (catalog) | Scenario E §13 | EXISTS — `models/inventory.py` |
 | `provider_quote` (line-item, validity, VAT, deposit) | Scenario E §11 | MISSING |
