@@ -11,6 +11,7 @@ export * from "./EligibilityBadge";
 export * from "./EnergyFlowChart";
 export * from "./FilterBar";
 export * from "./GenerationChart";
+export * from "./GenerationPanel";
 export * from "./KYCStatusBadge";
 export * from "./LaborCapitalClaimCard";
 export * from "./LiveSupplyIndicator";
