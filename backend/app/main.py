@@ -27,9 +27,13 @@ from .api import (
 )
 from .config import get_settings
 from .middleware.audit import MutationAuditMiddleware
+from .middleware.conservative import ConservativeHeaderMiddleware
 
 settings = get_settings()
 app = FastAPI(title=settings.app_name, version="0.1.0")
+# Starlette wraps last-added as outermost. ConservativeHeader needs to
+# be outermost so it can stamp X-Emappa-Conservative on EVERY response,
+# including ones short-circuited by inner middleware (CR-8).
 app.add_middleware(MutationAuditMiddleware)
 app.add_middleware(
     CORSMiddleware,
@@ -39,6 +43,7 @@ app.add_middleware(
     allow_methods=["*"],
     allow_headers=["*"],
 )
+app.add_middleware(ConservativeHeaderMiddleware)
 
 for router in [
     health.router,
