@@ -21,20 +21,20 @@
 ### What passes programmatically
 
 - Registry order and IDs in `stakeholderSections` align with how the **website** builds tabs via `getWebSections()` and `screenLoaders` — each loader object’s keys match the canonical section `id`s for that role (no stray tab IDs).
-- **Mobile** tab chrome is driven by `getMobileSections(role)` in `RoleTabs.tsx`; extra file routes are mostly hidden via `href: null` (`qualified-projects`, `compliance`, `_embedded/*`, etc.), which is consistent with “primary IA tabs + secondary stacks.”
+- **Mobile** tab chrome is driven by `getMobileSections(role)` in `RoleTabs.tsx`; extra file routes are mostly hidden via `href: null` (`qualified-projects`, `_embedded/*`, etc.), which is consistent with “primary IA tabs + secondary stacks.”
 
 ### Gaps and nuances (still Partial vs checklist wording “same screens, … data sources”)
 
 | Topic | Finding |
 | --- | --- |
 | **Data orchestration** | Web portals aggregate via `loadPortalData` in `website/src/App.tsx`; many mobile stacks call `getRoleHome` or narrower helpers per screen (`FinancierShared`, `ProviderShared`, resident APIs). **Same underlying mock/API models are not guaranteed per navigation event**, so “same data sources” remains only partially true even when layouts match. |
-| **Electrician compliance** | Web ships `website/src/screens/stakeholders/electrician/compliance.tsx` but it is **not** a portal tab; it is composed inside **Profile** (`ElectricianComplianceContent` in `electrician/profile.tsx`). Mobile exposes `/(electrician)/compliance` as a **hidden** tab route wired from profile (`InstallerProfileScreen`). Same content, **different routing shape** vs a strict “one file per tab” mental model. |
+| **Electrician compliance** | Web ships `website/src/screens/stakeholders/electrician/compliance.tsx` but it is **not** a portal tab; it is composed inside **Profile** (`ElectricianComplianceContent` in `electrician/profile.tsx`). Mobile aligns as of **P0.1.2**: compliance is inlined on **`ElectricianProfileScreen`** (`ElectricianComplianceEmbedded`); **`(electrician)/compliance.tsx` removed**. Component folder renamed **P0.1.5** (`mobile/components/electrician/`). |
 | **Immersive / chart stacks** | Resident **Energy** on web stacks `ImmersiveEnergyHero` + `EnergyTodayChart`; mobile uses `SystemEnergyImmersiveHero` + API-fed hourly series + cards. Visual and data paths differ even when narratives align. |
 
 ### Recommended checklist updates (IA-U10)
 
 - Split “screen parity” into explicit rows: **(a)** primary tab IDs/order (Pass when `auditStakeholderSectionParity` passes), **(b)** secondary/hidden route mapping (manual), **(c)** **data-fetch parity** (web `loadPortalData` vs mobile per-screen fetches — currently Partial).
-- Record **known routing exceptions** (e.g. electrician compliance under profile on web vs dedicated route on mobile) as accepted IA variance or schedule convergence.
+- Known routing exceptions ~~(electrician compliance: web profile-only vs mobile hidden route)~~ **resolved on mobile P0.1.2**; web still mounts `electrician/compliance.tsx` as a composed module inside profile (acceptable IA-U10 variance vs path strings only).
 
 ---
 
