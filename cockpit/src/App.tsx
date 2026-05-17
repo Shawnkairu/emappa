@@ -62,15 +62,24 @@ export function App() {
     getMe(session.token)
       .then((user) => {
         const fresh = { ...session, user };
+        if (fresh.user.role !== "admin") {
+          rejectSession();
+          return;
+        }
         saveSession(fresh);
         setSession(fresh);
       })
       .catch(() => {
-        clearSession();
-        setSession(null);
+        rejectSession();
       })
       .finally(() => setCheckingSession(false));
   }, []);
+
+  useEffect(() => {
+    if (!checkingSession && session && session.user.role !== "admin") {
+      rejectSession();
+    }
+  }, [checkingSession, session?.user.role]);
 
   useEffect(() => {
     if (!session || session.user.role !== "admin") return;
@@ -145,10 +154,24 @@ export function App() {
       : compareSyntheticScenarioOutcomes(scenarioFailureMode, scenarioPhase);
 
   function logout() {
+    rejectSession();
+  }
+
+  function rejectSession() {
     clearSession();
     setSession(null);
     setProjects([]);
     setSelectedProjectId(null);
+  }
+
+  function handleSession(nextSession: NonNullable<Session>) {
+    if (nextSession.user.role !== "admin") {
+      rejectSession();
+      return;
+    }
+
+    saveSession(nextSession);
+    setSession(nextSession);
   }
 
   function replaceProject(project: ProjectedBuilding) {
@@ -160,24 +183,11 @@ export function App() {
   }
 
   if (!session) {
-    return <LoginScreen onSession={setSession} />;
+    return <LoginScreen onSession={handleSession} />;
   }
 
   if (session.user.role !== "admin") {
-    return (
-      <main className="auth-shell">
-        <section className="auth-card">
-          <p className="eyebrow">Admins only</p>
-          <h1>Cockpit access is restricted.</h1>
-          <p className="lede">
-            {session.user.email} is signed in as {session.user.role}. Use the website portal for stakeholder screens.
-          </p>
-          <button className="primary-action" onClick={logout} type="button">
-            Sign out
-          </button>
-        </section>
-      </main>
-    );
+    return <main className="auth-shell">Redirecting to logout...</main>;
   }
 
   return (
@@ -406,7 +416,6 @@ function LoginScreen({ onSession }: { onSession: (session: NonNullable<Session>)
     setError(null);
     try {
       const session = await verifyOtp(email, code);
-      saveSession(session);
       onSession(session);
     } catch (verifyError) {
       setError((verifyError as Error).message);
