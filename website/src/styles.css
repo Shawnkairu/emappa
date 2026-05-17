@@ -144,6 +144,7 @@ a {
 }
 
 .filter-bar span,
+.filter-bar button,
 .onboard-steps span {
   border: 1px solid rgba(180, 89, 55, 0.16);
   background: rgba(255, 255, 255, 0.74);
@@ -152,6 +153,15 @@ a {
   font-size: 0.78rem;
   font-weight: 800;
   color: #6f584d;
+}
+
+.filter-bar button {
+  cursor: pointer;
+}
+
+.filter-bar button.active {
+  background: #b45937;
+  color: #fff;
 }
 
 .onboard-steps span.active {
