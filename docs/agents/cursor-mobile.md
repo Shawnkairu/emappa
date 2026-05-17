@@ -528,6 +528,65 @@ Then P2 (Homeowner ~25), P3 (BO ~16), P4 (Provider ~30), P5 (Electrician
 
 ---
 
+## 12. When to recommend a fresh chat
+
+Long chats get expensive (every reply re-reads the whole history) and risky
+(doctrine tripwires from §8 fade in salience). You should PROACTIVELY tell
+the operator to start a fresh chat when ANY of these triggers:
+
+| Trigger | Action |
+|---|---|
+| Phase boundary just crossed (P{N} role-phase merged to agent/mobile, ready for coordinator phase merge) | Recommend fresh chat for P{N+1} |
+| Chat turn count exceeds ~80 | Recommend fresh chat |
+| Last 10–15 turns were single-issue debugging | Recommend fresh chat after the fix lands |
+| Operator corrected you on a doctrine violation (§8) | Recommend fresh chat — fresh §8 salience |
+| Operator pivots to a new sub-section mid-phase (e.g., P2.2 embedded routes → P2.4 onboarding) | Recommend fresh chat for new sub-section |
+| Conversation feels "tired" or you're repeating yourself | Trust that signal — recommend fresh chat |
+
+When you spot one of these triggers, end your response with a clear
+recommendation block in this exact form:
+
+> **Cursor mobile note: I'd recommend starting a fresh chat for [reason].**
+> When ready, paste in a new chat:
+>
+> ```
+> Read docs/agents/cursor-mobile.md and proceed with your task.
+> ```
+>
+> I'll rehydrate via §0 (~10 seconds), read the §11 ledger, identify the
+> next task per §6, and continue exactly where we left off.
+
+### When to STAY in the chat (don't be over-eager)
+
+| Signal | Action |
+|---|---|
+| Mid-task, halfway through a PR | Stay — pushing through is cheaper than rehydrating |
+| Recent debugging context is still actively relevant | Stay |
+| Coordinator handoff between two small tasks within same role-phase | Stay |
+| Operator asking quick verification or clarification | Stay |
+| Single component/screen taking <30 min | Stay |
+
+### Honest meta-rule
+
+When in doubt, **ask the operator** whether they want to stay or start
+fresh. Don't try to be clever about it. The §11 ledger + §0 rehydration
+make fresh chats cheap, so erring on the side of "start fresh" is rarely
+wrong. But asking is always cheaper than guessing badly.
+
+### Specific phase-cadence suggestion for mobile
+
+Each per-role phase (P1 Resident, P2 Homeowner, P3 BO, P4 Provider,
+P5 Electrician, P6 Financier) is a coherent "what am I building" theme
+with ~20-35 mobile tasks. **One fresh chat per phase** is the natural
+unit. If a single phase chat passes ~80 turns, sub-divide:
+- P{N}-routes-and-onboarding (tabs + onboarding steps + components)
+- P{N}-embedded-routes (deeper impl)
+
+That keeps each chat in the 30-60 turn sweet spot.
+
+---
+
 **END CURSOR-MOBILE AGENT PROMPT.** When you finish a task, append to §11
 and start the next item per §6. When in doubt, re-read §8 — it tells you
-when to stop.
+when to stop. When the chat feels long, re-read §12 — it tells you when
+to hand off to a fresh session.
