@@ -27,6 +27,12 @@ router = APIRouter(prefix="/auth", tags=["auth"])
 
 
 def _serialize_user(user: User) -> dict:
+    """Wire shape matches packages/shared/src/types.ts `User`.
+
+    Fields kept in sync with the shared type via P1.6.1 verification — adding a
+    field here without updating the shared type breaks the type contract
+    locked in P0.0.4.
+    """
     return {
         "id": str(user.id),
         "email": user.email,
@@ -36,6 +42,7 @@ def _serialize_user(user: User) -> dict:
         "buildingId": str(user.building_id) if user.building_id else None,
         "onboardingComplete": bool(user.onboarding_complete),
         "displayName": user.display_name,
+        "profile": dict(user.profile or {}),
         "createdAt": (user.created_at or datetime.now(timezone.utc)).isoformat(),
         "lastSeenAt": user.last_seen_at.isoformat() if user.last_seen_at else None,
     }
