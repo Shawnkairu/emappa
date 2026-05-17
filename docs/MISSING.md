@@ -10,14 +10,18 @@
 
 ## Tally
 - Total artifacts checked: 312
-- MISSING: **205** (was 207 — 2 rows reclassified to EXISTS post-rename adoption: DRSProgressCard + TokenBalanceHero now exist at canonical paths)
+- MISSING: **183** (was 205 — 20 P0.2 shared primitives + 2 other rows reclassified to EXISTS after the P0 phase merge into main on 2026-05-17)
 - PARTIAL: 73
-- STALE: **13** (was 18 — 5 resolved in P0.1 mechanical renames through P0.1.7)
-- EXISTS: **20** (was 14 — 4 from renames + 2 reclassified)
+- STALE: **0** (was 13 — all naming/structural drift rows resolved across P0.1.1 through P0.1.7)
+- EXISTS: **42** (was 20 — +20 from P0.2 shared primitives + 2 from other P0 work)
+
+> **Phase burndown — `scripts/audit-missing.mjs` reports** (parses table rows, not grouped artifacts): 209 rows parsed, 97 MISSING / 50 PARTIAL / 0 STALE / 62 EXISTS, zero drift between MISSING.md and filesystem. The headline tally above counts grouped artifacts (~312) per the granularity note below; the walker counts table rows (~210). Both numbers move in the same direction; use the walker for CI burndown, use the headline tally for human-readable rollup.
 
 > **Granularity note.** MISSING.md currently aggregates ~227 IA_SPEC named artifacts into ~38 grouped rows for operational readability. BUILD_PLAN.md cuts the same backlog into ~390 task IDs (P0.0.1 ... P9.1.24) for assignment. The two are consistent but not 1:1; treat BUILD_PLAN task IDs as the unit of work assignment, and MISSING.md as the rollup tally for burndown reporting.
 
 > **2026-05-16 update.** Four STALE rows landed as part of [BUILD_PLAN.md §P0.1](BUILD_PLAN.md#p01-structural-cleanup-stale-rows-from-missingmd-naming-structural-drift): `DrsCard → mobile/components/shared/DRSProgressCard.tsx` (P0.1.8), `TokenHero → mobile/components/shared/TokenBalanceHero.tsx` (P0.1.9, also renamed in `website/src/portal/PortalWidgets.tsx`), `(auth)/verify-phone.tsx → verify-otp.tsx` (P0.1.10, with 3 importers updated + RoleTabs admin hidden-tab cleanup), `(admin)/home.tsx` deleted (P0.1.4). **`installer/ → electrician/`** done **2026-05-17** (P0.1.5). **`owner/ → building-owner/`** done **2026-05-17** (P0.1.6). **`proposed-flow/`** dissolved **2026-05-17** (P0.1.7): active screens live under `electrician/`, `provider/`, and `shared/ProposedPageChrome.tsx`. P3 spec components (HostRoyaltyCard, etc.) remain separate MISSING rows.
+
+> **2026-05-17 update (post-P0 phase merge).** All 20 P0.2 shared primitives shipped under `mobile/components/shared/` (P0.2.5 KYCStatusBadge, P0.2.9–22, P0.2.23–27 — see commit history on `main` after tag `phase-P0-done-2026-05-17`). Reclassified MISSING → EXISTS in this PR. Backend foundation also merged: audit_log CR-2 extensions + immutability triggers, rbac_claim + admin_allowlist, PII service + middleware, RBAC queue-scope middleware, conservative-by-default header, alert + incident tables, Scenario A backbone (apartment_ats_state, capacity_queue, load_profile), agent_action + agent_eval_run, pledge + token_purchase split (ADR 0002 PR 1 schema half). Backend tests: 184/184. Backend MISSING rows for those tables stay in their original "MISSING" cells until per-role endpoints expose them in P1.6 / P2.6 / etc. — the rule is "row stays MISSING until the consuming surface ships," not "row flips when the underlying primitive lands."
 
 ---
 
@@ -49,11 +53,11 @@
 | TokenBalanceHero (KES+kWh) | Resident Home (live), Homeowner Home (live) | `mobile/components/shared/TokenBalanceHero.tsx` | **EXISTS** (renamed 2026-05-16 P0.1.9) — needs adoption in role homes per P1/P2 |
 | LoadProfileConfidenceMeter (L1/L2/L3) | Resident Home/Profile | `mobile/components/resident/LoadProfileConfidenceMeter.tsx` | MISSING |
 | DRSProgressCard | Resident Home, BO Home | `mobile/components/shared/DRSProgressCard.tsx` | **EXISTS** (renamed 2026-05-16 P0.1.8) — needs adoption in role homes per P1/P2/P3 |
-| SystemHealthIndicator | Multi-role live screens | `mobile/components/shared/SystemHealthIndicator.tsx` | MISSING |
-| LiveSupplyIndicator (ATS, solar vs KPLC) | Resident/BO Home (live) | `mobile/components/shared/LiveSupplyIndicator.tsx` | MISSING |
+| SystemHealthIndicator | Multi-role live screens | `mobile/components/shared/SystemHealthIndicator.tsx` | EXISTS — shipped 2026-05-17 P0.2.9 |
+| LiveSupplyIndicator (ATS, solar vs KPLC) | Resident/BO Home (live) | `mobile/components/shared/LiveSupplyIndicator.tsx` | EXISTS — shipped 2026-05-17 P0.2.10 |
 | AllocationExplainer modal | Resident Energy | `mobile/components/resident/AllocationExplainer.tsx` | MISSING |
 | PledgeHistoryList | Resident Wallet | `mobile/components/resident/PledgeHistoryList.tsx` | MISSING |
-| OwnershipPositionCard | Resident/Homeowner/BO Wallet | `mobile/components/shared/OwnershipPositionCard.tsx` | MISSING |
+| OwnershipPositionCard | Resident/Homeowner/BO Wallet | `mobile/components/shared/OwnershipPositionCard.tsx` | EXISTS — shipped 2026-05-17 P0.2.11 |
 | OwnershipMarketplaceCard (embedded) | Resident Wallet | `mobile/components/resident/OwnershipMarketplaceCard.tsx` | MISSING |
 
 ### Onboarding
@@ -112,12 +116,12 @@
 |---|---|---|
 | ProjectHero (DRS+blockers+timeline) | `mobile/components/ProjectHero.tsx` | EXISTS — verify includes blocker pills + timeline phases |
 | TokenBalanceHero (tokens+solar coverage) | `mobile/components/shared/TokenBalanceHero.tsx` (renamed P0.1.9) | EXISTS — verify "disabled pre-live" copy gate per §7.1 |
-| DeploymentProgressBar | `mobile/components/shared/DeploymentProgressBar.tsx` | MISSING |
-| BlockerPill | `mobile/components/shared/BlockerPill.tsx` | MISSING |
-| OwnershipRingChart (share-split) | `mobile/components/shared/OwnershipRingChart.tsx` | MISSING |
+| DeploymentProgressBar | `mobile/components/shared/DeploymentProgressBar.tsx` | EXISTS — shipped 2026-05-17 P0.2.14 |
+| BlockerPill | `mobile/components/shared/BlockerPill.tsx` | EXISTS — shipped 2026-05-17 P0.2.15 |
+| OwnershipRingChart (share-split) | `mobile/components/shared/OwnershipRingChart.tsx` | EXISTS — shipped 2026-05-17 P0.2.12 |
 | SystemSizingExplainer modal | `mobile/components/homeowner/SystemSizingExplainer.tsx` | MISSING |
 | ConsumptionTimeline | `mobile/components/homeowner/ConsumptionTimeline.tsx` | MISSING |
-| CashflowLedger | `mobile/components/shared/CashflowLedger.tsx` | MISSING |
+| CashflowLedger | `mobile/components/shared/CashflowLedger.tsx` | EXISTS — shipped 2026-05-17 P0.2.16 |
 
 ### Onboarding (Scenario C §6)
 | Step | Target | Status |
@@ -224,13 +228,13 @@
 | Component | Target | Status |
 |---|---|---|
 | ProjectCard (Airbnb-style) | `mobile/components/ProjectCard.tsx` | EXISTS — verify fields per spec |
-| FilterBar (stage/region/equipment/deal-size/business-type) | `mobile/components/shared/FilterBar.tsx` | MISSING |
-| ProjectStatusCard | `mobile/components/shared/ProjectStatusCard.tsx` | MISSING |
-| ProjectTimeline | `mobile/components/shared/ProjectTimeline.tsx` | MISSING |
+| FilterBar (stage/region/equipment/deal-size/business-type) | `mobile/components/shared/FilterBar.tsx` | EXISTS — shipped 2026-05-17 P0.2.17 |
+| ProjectStatusCard | `mobile/components/shared/ProjectStatusCard.tsx` | EXISTS — shipped 2026-05-17 P0.2.18 |
+| ProjectTimeline | `mobile/components/shared/ProjectTimeline.tsx` | EXISTS — shipped 2026-05-17 P0.2.19 |
 | DeliveryTracker | `mobile/components/provider/DeliveryTracker.tsx` | MISSING |
 | BOMMatchCard | `mobile/components/provider/BOMMatchCard.tsx` | MISSING |
-| GenerationChart | `mobile/components/shared/GenerationChart.tsx` | MISSING |
-| OwnershipBreakdown (ring) | `mobile/components/shared/OwnershipBreakdown.tsx` | MISSING |
+| GenerationChart | `mobile/components/shared/GenerationChart.tsx` | EXISTS — shipped 2026-05-17 P0.2.20 |
+| OwnershipBreakdown (ring) | `mobile/components/shared/OwnershipBreakdown.tsx` | EXISTS — shipped 2026-05-17 P0.2.13 |
 | RetainedClaimCard | `mobile/components/provider/RetainedClaimCard.tsx` | MISSING |
 | PerformanceMetrics | `mobile/components/provider/PerformanceMetrics.tsx` | MISSING |
 | CashSalesLedger | `mobile/components/provider/CashSalesLedger.tsx` | MISSING |
@@ -239,7 +243,7 @@
 | PredictedIncomeScenarios | `mobile/components/provider/PredictedIncomeScenarios.tsx` | MISSING |
 | QuoteBuilder | `mobile/components/provider/QuoteBuilder.tsx` | MISSING |
 | InventoryCatalog | `mobile/components/provider/InventoryCatalog.tsx` | MISSING |
-| RatingsSummary | `mobile/components/shared/RatingsSummary.tsx` | MISSING |
+| RatingsSummary | `mobile/components/shared/RatingsSummary.tsx` | EXISTS — shipped 2026-05-17 P0.2.25 |
 
 ### Onboarding (Scenario E §5)
 | Step | Target | Status |
@@ -299,11 +303,11 @@
 | EvidenceGallery | `mobile/components/electrician/EvidenceGallery.tsx` | MISSING |
 | CameraCapture (offline + serial scan) | `mobile/components/electrician/CameraCapture.tsx` | MISSING |
 | MilestonePayoutCard | `mobile/components/electrician/MilestonePayoutCard.tsx` | MISSING |
-| LaborCapitalClaimCard | `mobile/components/shared/LaborCapitalClaimCard.tsx` | MISSING |
+| LaborCapitalClaimCard | `mobile/components/shared/LaborCapitalClaimCard.tsx` | EXISTS — shipped 2026-05-17 P0.2.27 |
 | HouseholdRequestCard | `mobile/components/electrician/HouseholdRequestCard.tsx` | MISSING |
 | CertificationCard | `mobile/components/electrician/CertificationCard.tsx` | MISSING |
 | CrewCard | `mobile/components/electrician/CrewCard.tsx` | MISSING |
-| DocumentUploadCard | `mobile/components/shared/DocumentUploadCard.tsx` | MISSING |
+| DocumentUploadCard | `mobile/components/shared/DocumentUploadCard.tsx` | EXISTS — shipped 2026-05-17 P0.2.26 |
 
 ### Onboarding (Scenario D §4)
 | Step | Target | Status |
@@ -362,7 +366,7 @@
 | EligibilityBadge (invest now/watch only/documents needed/limit reached/restricted jurisdiction) | `mobile/components/shared/EligibilityBadge.tsx` | BUILT |
 | EscrowStatusCard | `mobile/components/financier/EscrowStatusCard.tsx` | MISSING |
 | ReleaseSchedule | `mobile/components/financier/ReleaseSchedule.tsx` | MISSING |
-| EnergyFlowChart | `mobile/components/shared/EnergyFlowChart.tsx` | MISSING |
+| EnergyFlowChart | `mobile/components/shared/EnergyFlowChart.tsx` | EXISTS — shipped 2026-05-17 P0.2.21 |
 | UtilizationTrend | `mobile/components/financier/UtilizationTrend.tsx` | MISSING |
 | DataQualityBadge (verified/estimated/missing/disputed/conservative) | `mobile/components/shared/DataQualityBadge.tsx` | BUILT |
 | ClaimPerformanceCard | `mobile/components/financier/ClaimPerformanceCard.tsx` | MISSING |
@@ -371,13 +375,13 @@
 | PaybackTracker | `mobile/components/financier/PaybackTracker.tsx` | MISSING (PaybackCard exists — verify rename/fields) |
 | ProjectionScenarios | `mobile/components/financier/ProjectionScenarios.tsx` | MISSING |
 | RiskAlertList | `mobile/components/financier/RiskAlertList.tsx` | MISSING |
-| SettlementStatement | `mobile/components/shared/SettlementStatement.tsx` | MISSING |
+| SettlementStatement | `mobile/components/shared/SettlementStatement.tsx` | EXISTS — shipped 2026-05-17 P0.2.22 |
 | IdentityCard | `mobile/components/financier/IdentityCard.tsx` | PARTIAL — referenced once |
-| KYCStatusBadge | `mobile/components/shared/KYCStatusBadge.tsx` | MISSING |
+| KYCStatusBadge | `mobile/components/shared/KYCStatusBadge.tsx` | EXISTS — shipped 2026-05-17 P0.2.5 |
 | RiskProfileSummary | `mobile/components/financier/RiskProfileSummary.tsx` | MISSING |
 | EligibilityTierBadge | `mobile/components/financier/EligibilityTierBadge.tsx` | MISSING |
-| PayoutAccountCard | `mobile/components/shared/PayoutAccountCard.tsx` | MISSING |
-| ComplianceStatusIndicator | `mobile/components/shared/ComplianceStatusIndicator.tsx` | MISSING |
+| PayoutAccountCard | `mobile/components/shared/PayoutAccountCard.tsx` | EXISTS — shipped 2026-05-17 P0.2.23 |
+| ComplianceStatusIndicator | `mobile/components/shared/ComplianceStatusIndicator.tsx` | EXISTS — shipped 2026-05-17 P0.2.24 |
 
 ### Onboarding (Scenario F §5)
 | Step | Target | Status |
