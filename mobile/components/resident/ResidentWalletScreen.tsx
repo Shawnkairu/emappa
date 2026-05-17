@@ -1,13 +1,15 @@
 import { useCallback, useRef, useState } from "react";
 import { Pressable, StyleSheet, Text, View } from "react-native";
-import type { ProjectedBuilding } from "@emappa/shared";
-import { PaletteCard, Pill, colors, officialPalette, spacing, typography } from "@emappa/ui";
+import type { PrepaidCommitment, ProjectedBuilding } from "@emappa/shared";
+import { colors, spacing, typography } from "@emappa/ui";
 import { useRouter } from "expo-router";
 import { useApi } from "../../lib/api";
 import { useApiData } from "../../lib/useApiData";
 import { OwnershipPositionCard, PilotBanner, ScreenState, TokenBalanceHero } from "../shared";
 import { commitResidentPrepaid, getResidentPrepaidBalance, getResidentPrepaidHistory } from "./ResidentApi";
+import { OwnershipMarketplaceCard } from "./OwnershipMarketplaceCard";
 import { PledgeBalanceCard } from "./PledgeBalanceCard";
+import { PledgeHistoryList } from "./PledgeHistoryList";
 import { ResidentInfoCard, ResidentMetricGrid, ResidentPrimaryButton, ResidentScreenFrame } from "./ResidentScaffold";
 import { TokenPurchaseCTA } from "./TokenPurchaseCTA";
 import { canEditPledge, canResidentBuyTokens } from "./residentHomeState";
@@ -111,6 +113,7 @@ function ResidentWalletPanels({ building, refetchHome }: { building: ProjectedBu
 
             {section === "ownership" ? (
               <OwnershipSection
+                building={building}
                 hasShares={hasShares}
                 sharePct={view.ownedProviderShare}
                 onMarketplace={() => router.push("/(resident)/_embedded/marketplace")}
@@ -171,7 +174,7 @@ function PledgesSection({
   building: ProjectedBuilding;
   confirmedKes: number;
   pendingKes: number;
-  history: Array<{ id: string; amountKes: number; status: string; createdAt: string }>;
+  history: PrepaidCommitment[];
   editPledge: boolean;
   isPledging: boolean;
   pledgeError: string | null;
@@ -244,19 +247,10 @@ function PledgesSection({
         />
       )}
 
-      <PaletteCard style={styles.historyCard}>
-        <Text style={styles.historyTitle}>Pledge history</Text>
-        {history.map((item) => (
-          <View key={item.id} style={styles.historyRow}>
-            <View>
-              <Text style={styles.historyAmount}>{formatKes(item.amountKes)}</Text>
-              <Text style={styles.historyDate}>{new Date(item.createdAt).toLocaleDateString()}</Text>
-            </View>
-            <Pill tone={item.status === "confirmed" ? "good" : item.status === "failed" ? "bad" : "warn"}>{item.status}</Pill>
-          </View>
-        ))}
-        {history.length === 0 ? <Text style={styles.emptyHistory}>No pledges yet.</Text> : null}
-      </PaletteCard>
+      <PledgeHistoryList
+        history={history}
+        onSelectPledge={() => onEdit()}
+      />
     </>
   );
 }
@@ -292,36 +286,35 @@ function TokensSection({
 }
 
 function OwnershipSection({
+  building,
   hasShares,
   sharePct,
   onMarketplace,
 }: {
+  building: ProjectedBuilding;
   hasShares: boolean;
   sharePct: number;
   onMarketplace: () => void;
 }) {
   if (!hasShares) {
     return (
-      <PaletteCard borderRadius={28} padding={20} style={styles.emptyOwnership}>
-        <Text style={styles.emptyTitle}>You do not own shares yet</Text>
-        <Text style={styles.emptyDetail}>
-          Ownership marketplace shows valuation basis and risk disclosure. No guaranteed returns. Browse when project terms
-          allow per Scenario A §8.6.
-        </Text>
-        <ResidentPrimaryButton onPress={onMarketplace} accessibilityLabel="Browse ownership marketplace">
-          Browse marketplace
-        </ResidentPrimaryButton>
-      </PaletteCard>
+      <>
+        <OwnershipMarketplaceCard building={building} onBrowse={onMarketplace} />
+        <Text style={styles.emptyDetail}>You do not own shares yet. Browse only when project terms allow.</Text>
+      </>
     );
   }
 
   return (
-    <OwnershipPositionCard
+    <>
+      <OwnershipMarketplaceCard building={building} onBrowse={onMarketplace} />
+      <OwnershipPositionCard
       title="Provider pool share"
       sharePct={sharePct * 100}
       poolLabel="Retained claim"
       detail={`${formatPercent(sharePct)} of the provider-side pool on this building.`}
     />
+    </>
   );
 }
 
@@ -345,42 +338,6 @@ const styles = StyleSheet.create({
   segmentTextActive: { color: colors.text },
   success: { color: colors.green, fontSize: typography.small, lineHeight: 19 },
   error: { color: colors.red, fontSize: typography.small, lineHeight: 19 },
-  historyCard: { marginBottom: spacing.lg },
-  historyTitle: { color: colors.text, fontSize: typography.title, fontWeight: "800", marginBottom: spacing.sm },
-  historyRow: {
-    alignItems: "center",
-    borderTopColor: colors.border,
-    borderTopWidth: StyleSheet.hairlineWidth,
-    flexDirection: "row",
-    justifyContent: "space-between",
-    gap: spacing.md,
-    paddingVertical: 11,
-  },
-  historyAmount: { color: colors.text, fontSize: typography.small, fontWeight: "800" },
-  historyDate: { color: colors.muted, fontSize: typography.micro, marginTop: 3 },
-  emptyHistory: { color: colors.muted, fontSize: typography.small, lineHeight: 20 },
   lockedCopy: { color: colors.muted, fontSize: typography.small, lineHeight: 20, marginTop: spacing.sm },
-  emptyOwnership: { gap: spacing.md, marginBottom: spacing.lg },
-  emptyTitle: { color: colors.text, fontSize: typography.title, fontWeight: "800" },
-  emptyDetail: { color: colors.muted, fontSize: typography.small, lineHeight: 20 },
-  walletGraphic: {
-    alignItems: "flex-end",
-    marginTop: 18,
-  },
-  walletPocket: {
-    borderColor: "rgba(118, 73, 39, 0.16)",
-    borderRadius: 24,
-    borderWidth: StyleSheet.hairlineWidth * 2,
-    height: 86,
-    justifyContent: "flex-end",
-    padding: 12,
-    width: 132,
-  },
-  walletSlot: {
-    backgroundColor: officialPalette.foxOrange,
-    borderRadius: 999,
-    height: 6,
-    marginBottom: 12,
-    width: 52,
-  },
+  emptyDetail: { color: colors.muted, fontSize: typography.small, lineHeight: 20, marginBottom: spacing.lg },
 });
