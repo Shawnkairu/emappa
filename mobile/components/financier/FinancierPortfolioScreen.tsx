@@ -7,11 +7,14 @@ import {
   StatusRail,
   formatKesShort,
 } from "./FinancierShared";
-import { View } from "react-native";
+import { useRouter } from "expo-router";
+import { Pressable, View } from "react-native";
 import { SystemProjectImmersiveHero } from "../energy/SystemImmersiveOverview";
 import { PilotBanner } from "../PilotBanner";
 
 export function FinancierPortfolioScreen() {
+  const router = useRouter();
+
   return (
     <FinancierScreenShell
       section="Portfolio"
@@ -81,7 +84,13 @@ export function FinancierPortfolioScreen() {
             />
             <DealPipelineCard projects={projects} />
             <CashflowWaterfallCard building={primary} />
-            <RecoveryBandCard building={primary} />
+            <Pressable
+              accessibilityRole="button"
+              accessibilityLabel="Open payback scenarios and tranche release"
+              onPress={() => router.push("/(financier)/_embedded/payback-scenarios")}
+            >
+              <RecoveryBandCard building={primary} />
+            </Pressable>
         </>
         );
       }}

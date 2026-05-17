@@ -270,8 +270,10 @@ function getActionTarget(role: StakeholderRole, action: string) {
       ["stress", "/(financier)/portfolio"],
       ["recovery", "/(financier)/portfolio"],
       ["exposure", "/(financier)/portfolio"],
-      ["tranche", "/(financier)/tranche-release"],
-      ["release", "/(financier)/tranche-release"],
+      ["tranche", "/(financier)/_embedded/payback-scenarios"],
+      ["release", "/(financier)/_embedded/payback-scenarios"],
+      ["payback", "/(financier)/_embedded/payback-scenarios"],
+      ["scenario", "/(financier)/_embedded/payback-scenarios"],
     ],
     electrician: [
       ["site", "/(electrician)/jobs"],

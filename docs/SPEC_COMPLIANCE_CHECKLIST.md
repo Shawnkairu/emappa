@@ -587,6 +587,7 @@ Gross revenue (prepaid kWh * tariff_kes_per_kwh)
 
 ## Change log
 
+- **2026-05-17** (v2.8) — **BUILD_PLAN P0.1.3 (financier tranche → payback embed)** — Removed hidden tab `mobile/app/(financier)/tranche-release.tsx`. Tranche/milestone release + payback scenario UX lives at [`mobile/app/(financier)/_embedded/payback-scenarios.tsx`](../mobile/app/(financier)/_embedded/payback-scenarios.tsx) via [`FinancierPaybackScenariosScreen`](../mobile/components/financier/FinancierPaybackScenariosScreen.tsx). [`RoleTabs`](../mobile/components/RoleTabs.tsx) hides `_embedded` instead of `tranche-release`; [`RoleDashboardScaffold`](../mobile/components/roles/RoleDashboardScaffold.tsx) deep links (`tranche`, `release`, `payback`, `scenario`) target the embed. Portfolio/Wallet tap-through to scenarios. **Web:** no `payback-scenarios` portal route yet — IA-U10 parity deferred to Codex.
 - **2026-05-16** (v2.5) — Field-walk of the remaining 14 Provider/Electrician/Financier §4 rows. For each, the underlying component file was opened and rendered content compared item-by-item against the relevant scenario doc screen list.
   - **3 upgrades to ✅ Pass:**
     - §4.4 Provider Generation (4/4 items: share-gate, array list with %, today's kWh, empty-state — `ProviderGenerationScreen.tsx` 102L)
