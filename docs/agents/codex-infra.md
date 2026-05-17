@@ -301,6 +301,32 @@ Per-step screens at `website/src/onboard/<role>/step{N}.tsx` (no monoliths).
 
 ### PR size ceiling: **300 LOC diff.** Larger work splits into multiple tasks.
 
+### Push early, push often (commit ≠ shipped)
+
+**Commit is local — push is recoverable.** A `git commit` lives only in
+your local `.git/objects` until you push. If your machine dies, the
+commit dies with it. The work isn't "shipped" until it's on origin.
+
+Discipline:
+
+```sh
+# After EVERY meaningful commit on a task branch, push it:
+git push -u origin task/P{N}.{g}.{t}-short-name   # first push (with -u)
+# … more work, more commits …
+git push origin task/P{N}.{g}.{t}-short-name      # every subsequent commit
+```
+
+The task branch on origin acts as your durable backup. CI hasn't passed
+yet, the task isn't merged, but the work is safe. Re-push as you go,
+not just at the end.
+
+In our terminology:
+- **Local commit** = at risk
+- **Pushed to task branch** = safe, not accepted
+- **Merged to `agent/web`** = accepted into your agent's working state
+- **Merged to `main` (phase boundary, coordinator action)** = canonical project state
+- **Deployed** = live for users (P9+)
+
 ### Verify locally before push
 ```sh
 npm run ci          # full CI must be green
@@ -467,6 +493,23 @@ Mapping is shown below. Going forward (per §7), all commits start with
   (land on main at P1 phase merge). When you build P1.5.* web parity
   screens, use `<RequiresReason>` wrapper for any mutation form — the
   backend rejects writes without a non-empty `reason` field (CR-2).
+- **2026-05-17 — agent/web was force-pushed to parity with main**
+  (coordinator hygiene; lost no remote work). Your local task branch
+  `task/P1.5.2-resident-energy-web-mirror` has a WIP commit `2b8d28f`
+  ("Mirror resident energy allocation on web") that was NEVER PUSHED.
+  When you resume, **first push that branch** to make the commit
+  recoverable, THEN rebase it on the new agent/web HEAD before
+  continuing:
+  ```sh
+  git checkout task/P1.5.2-resident-energy-web-mirror
+  git push -u origin task/P1.5.2-resident-energy-web-mirror   # SAFETY FIRST
+  git fetch origin
+  git rebase agent/web                                         # bring forward
+  git push --force-with-lease origin task/P1.5.2-resident-energy-web-mirror
+  # Then continue your work.
+  ```
+  See §7 "Push early, push often" for the discipline going forward —
+  local-only commits are at risk; pushed commits are safe.
 
 ### Next on your queue (per BUILD_PLAN)
 - **P1.5.1** — `website/src/screens/stakeholders/resident/home.tsx` web mirror
