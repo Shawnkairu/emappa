@@ -587,6 +587,60 @@ Gross revenue (prepaid kWh * tariff_kes_per_kwh)
 
 ## Change log
 
+- **2026-05-17** (v2.42) — **BUILD_PLAN P0.4.1 (`shared barrel`)** — Added mobile/components/shared/index.ts exporting all P0.2 primitives + ScreenState.
+
+- **2026-05-17** (v2.41) — **BUILD_PLAN P0.3.16 (`ScreenState`)** — Added ScreenState wrapper for CR-8 loading / empty / error / populated phases.
+
+- **2026-05-17** (v2.40) — **BUILD_PLAN P0.2.30 (`RoofMap`)** — Promoted RoofMap to shared/ with polygon-over-satellite overlay; root re-export.
+
+- **2026-05-17** (v2.39) — **BUILD_PLAN P0.2.29 (`PilotBanner`)** — Promoted PilotBanner to shared/; IA-U6 copy retained; root re-export.
+
+- **2026-05-17** (v2.38) — **BUILD_PLAN P0.2.28 (`RoofPolygonViewer`)** — Added RoofPolygonViewer traced polygon overlay for roof-detail embeds.
+
+- **2026-05-17** (v2.37) — **BUILD_PLAN P0.2.27 (`LaborCapitalClaimCard`)** — Added LaborCapitalClaimCard with opt-in disclosure (Scenario D §22.1).
+
+- **2026-05-17** (v2.36) — **BUILD_PLAN P0.2.26 (`DocumentUploadCard`)** — Added DocumentUploadCard for authority/identity onboarding uploads.
+
+- **2026-05-17** (v2.35) — **BUILD_PLAN P0.2.25 (`RatingsSummary`)** — Added RatingsSummary star row for provider/electrician profiles.
+
+- **2026-05-17** (v2.34) — **BUILD_PLAN P0.2.24 (`ComplianceStatusIndicator`)** — Added ComplianceStatusIndicator (verified / limited / restricted / documents needed).
+
+- **2026-05-17** (v2.33) — **BUILD_PLAN P0.2.23 (`PayoutAccountCard`)** — Added PayoutAccountCard for profile payout rail status (point-of-need, not onboarding).
+
+- **2026-05-17** (v2.32) — **BUILD_PLAN P0.2.22 (`SettlementStatement`)** — Added SettlementStatement period lines + conservative flag.
+
+- **2026-05-17** (v2.31) — **BUILD_PLAN P0.2.21 (`EnergyFlowChart`)** — Added EnergyFlowChart stacked flow + legend (Scenario F §11).
+
+- **2026-05-17** (v2.30) — **BUILD_PLAN P0.2.20 (`GenerationChart`)** — Added GenerationChart 24h bar sketch with SyntheticBadge when projected.
+
+- **2026-05-17** (v2.29) — **BUILD_PLAN P0.2.19 (`ProjectTimeline`)** — Added ProjectTimeline vertical step rail for project-detail embeds.
+
+- **2026-05-17** (v2.28) — **BUILD_PLAN P0.2.18 (`ProjectStatusCard`)** — Added ProjectStatusCard with stage, DRS bar, and blocker pills.
+
+- **2026-05-17** (v2.27) — **BUILD_PLAN P0.2.17 (`FilterBar`)** — Added FilterBar horizontal chip filter for Discover screens.
+
+- **2026-05-17** (v2.26) — **BUILD_PLAN P0.2.16 (`CashflowLedger`)** — Added CashflowLedger row list for wallet cashflow streams.
+
+- **2026-05-17** (v2.25) — **BUILD_PLAN P0.2.15 (`BlockerPill`)** — Added BlockerPill for DRS/project blocker lists (critical / warning / info).
+
+- **2026-05-17** (v2.24) — **BUILD_PLAN P0.2.14 (`DeploymentProgressBar`)** — Added DeploymentProgressBar with phase dots and readiness track.
+
+- **2026-05-17** (v2.23) — **BUILD_PLAN P0.2.13 (`OwnershipBreakdown`)** — Added OwnershipBreakdown wrapper composing OwnershipRingChart.
+
+- **2026-05-17** (v2.22) — **BUILD_PLAN P0.2.12 (`OwnershipRingChart`)** — Added OwnershipRingChart with SVG ring segments + legend.
+
+- **2026-05-17** (v2.21) — **BUILD_PLAN P0.2.11 (`OwnershipPositionCard`)** — Added OwnershipPositionCard for wallet share positions with optional buy-back callout.
+
+- **2026-05-17** (v2.20) — **BUILD_PLAN P0.2.10 (`LiveSupplyIndicator`)** — Added LiveSupplyIndicator: 7 ATS states + solar/KPLC/mixed supply pill (Scenario A §2.1).
+
+- **2026-05-17** (v2.19) — **BUILD_PLAN P0.2.9 (`SystemHealthIndicator`)** — Added SystemHealthIndicator (healthy / warning / error) for live home screens.
+
+- **2026-05-17** (v2.18) — **BUILD_PLAN P0.2.7 (`TokenBalanceHero`)** — Extended TokenBalanceHero with dual KES + kWh balance row and disabled pre-live gate.
+
+- **2026-05-17** (v2.17) — **BUILD_PLAN P0.2.6 (`SyntheticBadge`)** — Promoted SyntheticBadge to mobile/components/shared/ with mode/source props; root re-export preserves imports (CR-8).
+
+- **2026-05-17** (v2.16) — **BUILD_PLAN P0.2.5 (`KYCStatusBadge`)** — Added mobile/components/shared/KYCStatusBadge.tsx: 6 KYC/KYB states, Scenario F §27 labels, official-palette badge chip.
+
 - **2026-05-17** (v2.15) — **BUILD_PLAN P0.2.4 (`EligibilityBadge`)** — Added [`mobile/components/shared/EligibilityBadge.tsx`](../mobile/components/shared/EligibilityBadge.tsx): typed 5 IA eligibility states (invest now / watch only / documents needed / limit reached / restricted jurisdiction), Scenario F §7 labels, official-palette badge styling (compact chip, not pill). Financier Discover partial (primitive only; screen adoption pending).
 - **2026-05-17** (v2.14) — **BUILD_PLAN P0.2.3 (`DataQualityBadge`)** — Added [`mobile/components/shared/DataQualityBadge.tsx`](../mobile/components/shared/DataQualityBadge.tsx): typed 5 IA data-quality states (verified / estimated / missing / disputed / conservative), Scenario F §13 labels, official-palette badge styling (compact chip, not pill). Financier Energy tab partial (primitive only; screen adoption pending).
 - **2026-05-17** (v2.13) — **BUILD_PLAN P0.2.2 (`CapacityQueueStatusPill`)** — Added [`mobile/components/shared/CapacityQueueStatusPill.tsx`](../mobile/components/shared/CapacityQueueStatusPill.tsx): typed 7 §6.2 queue statuses, Scenario A resident UI copy, official-palette pill styling. R-7 partial (primitive only; Home adoption pending).
