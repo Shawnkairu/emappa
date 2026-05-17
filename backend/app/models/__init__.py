@@ -12,6 +12,7 @@ from .ats import ApartmentAtsState
 from .audit import AuditLog
 from .building import Building
 from .capacity_queue import CapacityQueue
+from .homeowner_authority import HomeownerAuthority
 from .incident import Incident
 from .load_profile import LoadProfile
 from .pledge import Pledge
@@ -41,6 +42,7 @@ __all__ = [
     "Certification",
     "EnergyReading",
     "FinancierPosition",
+    "HomeownerAuthority",
     "Incident",
     "InventoryItem",
     "Job",
