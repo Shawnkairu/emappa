@@ -26,9 +26,11 @@ from .api import (
     websocket,
 )
 from .config import get_settings
+from .middleware.audit import MutationAuditMiddleware
 
 settings = get_settings()
 app = FastAPI(title=settings.app_name, version="0.1.0")
+app.add_middleware(MutationAuditMiddleware)
 app.add_middleware(
     CORSMiddleware,
     allow_origins=settings.cors_origins,
