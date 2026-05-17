@@ -1,4 +1,12 @@
-"""Pledge endpoints — pilot mode of /prepaid/*. See docs/PILOT_SCOPE.md §2."""
+"""Pledge endpoints — pilot mode of /prepaid/*. See docs/PILOT_SCOPE.md §2.
+
+ADR 0002 PR 1 status (2026-05-17): POST /prepaid/commit is now a dual-write
+façade. It still accepts the legacy payload and writes to prepaid_commitments
+(unchanged), but ALSO writes to either the new `pledge` table or the new
+`token_purchase` table depending on `building.stage` ('live' → token_purchase,
+otherwise → pledge). PR 2 (P1.6.2b) will return 410 Gone after the parity
+observation window closes — see scripts/audit_pledge_token_parity.py.
+"""
 from __future__ import annotations
 
 import uuid
@@ -15,7 +23,9 @@ from ..models.prepaid import PrepaidCommitment
 from ..models.user import User
 from ..repos import audit as audit_repo
 from ..repos import buildings as buildings_repo
+from ..repos import pledges as pledges_repo
 from ..repos import prepaid as prepaid_repo
+from ..repos import token_purchases as tp_repo
 from ..repos import wallet as wallet_repo
 
 router = APIRouter(prefix="/prepaid", tags=["prepaid"])
@@ -60,6 +70,7 @@ async def commit_pledge(
     if user.role in {"resident", "homeowner"} and user.building_id != building_id:
         raise HTTPException(status_code=403, detail="not_your_building")
 
+    # Legacy write (preserved for backwards-compat during ADR 0002 PR 1 window).
     pledge = await prepaid_repo.create_pledge(
         session,
         building_id=building_id,
@@ -73,16 +84,55 @@ async def commit_pledge(
         amount_kes=Decimal(f"-{body.amount_kes}"),
         reference=f"Pledge to {building.name}",
     )
+
+    # ADR 0002 PR 1 dual-write: classify by building.stage. Pre-live →
+    # pledge (non-binding). Live → token_purchase (real money). The new-table
+    # row carries the same economic meaning + the same created_at so the
+    # parity audit script can reconcile by (building_id, user_id, period).
+    classified_as: str
+    new_row_id: str
+    if building.stage == "live":
+        new_row = await tp_repo.create(
+            session,
+            building_id=building_id,
+            user_id=user.id,
+            amount_kes=body.amount_kes,
+            payment_method="mpesa",  # legacy default; ADR 0002 PR 2 deletes this path
+        )
+        classified_as = "token_purchase"
+        new_row_id = str(new_row.id)
+    else:
+        new_row = await pledges_repo.create(
+            session,
+            building_id=building_id,
+            user_id=user.id,
+            amount_kes=body.amount_kes,
+        )
+        classified_as = "pledge"
+        new_row_id = str(new_row.id)
+
     await audit_repo.log_event(
         session,
         actor_user_id=user.id,
         action="prepaid.commit",
         target_type="building",
         target_id=str(building_id),
-        payload={"amount_kes": body.amount_kes, "commitment_id": str(pledge.id)},
+        payload={
+            "amount_kes": body.amount_kes,
+            "commitment_id": str(pledge.id),
+            "classified_as": classified_as,
+            "new_row_id": new_row_id,
+            "building_stage_at_write": building.stage,
+        },
     )
     await session.commit()
-    return {"commitment": _serialize(pledge)}
+    return {
+        "commitment": _serialize(pledge),
+        "dualWrite": {
+            "classifiedAs": classified_as,
+            "newRowId": new_row_id,
+        },
+    }
 
 
 @router.get("/{building_id}/balance")
