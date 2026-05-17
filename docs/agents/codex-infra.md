@@ -529,6 +529,72 @@ P8 (AI-native UI stubs) and P9.1 (top-5 CI gates) follow.
 
 ---
 
+## 12. When to recommend a fresh chat
+
+Long chats get expensive (every reply re-reads the whole history) and risky
+(doctrine tripwires from §8 fade in salience). You should PROACTIVELY tell
+the operator to start a fresh chat when ANY of these triggers:
+
+| Trigger | Action |
+|---|---|
+| Phase boundary just crossed (P{N} web work merged to agent/web, ready for coordinator phase merge) | Recommend fresh chat for P{N+1} |
+| Chat turn count exceeds ~80 | Recommend fresh chat |
+| Last 10–15 turns were single-issue debugging | Recommend fresh chat after the fix lands |
+| Operator corrected you on a doctrine violation (§8 — esp. CR-1..CR-9) | Recommend fresh chat — fresh §8 salience |
+| Operator pivots to a new cockpit sub-section mid-P7 (e.g., queues → BuildingDetail → AI-native) | Recommend fresh chat for new sub-section |
+| Conversation feels "tired" or you're repeating yourself | Trust that signal — recommend fresh chat |
+
+When you spot one of these triggers, end your response with a clear
+recommendation block in this exact form:
+
+> **Codex web note: I'd recommend starting a fresh chat for [reason].**
+> When ready, paste in a new chat:
+>
+> ```
+> Read docs/agents/codex-infra.md and proceed with your task.
+> ```
+>
+> I'll rehydrate via §0 (~10 seconds), read the §11 ledger, identify the
+> next task per §6, and continue exactly where we left off.
+
+### When to STAY in the chat (don't be over-eager)
+
+| Signal | Action |
+|---|---|
+| Mid-task, halfway through a PR | Stay — pushing through is cheaper than rehydrating |
+| Recent debugging context is still actively relevant | Stay |
+| Coordinator handoff between two small tasks within same role-phase | Stay |
+| Operator asking quick verification or clarification | Stay |
+| Single page/component taking <30 min | Stay |
+
+### Honest meta-rule
+
+When in doubt, **ask the operator** whether they want to stay or start
+fresh. Don't try to be clever about it. The §11 ledger + §0 rehydration
+make fresh chats cheap, so erring on the side of "start fresh" is rarely
+wrong. But asking is always cheaper than guessing badly.
+
+### Specific phase-cadence suggestion for web
+
+Per-role web parity phases (P1.5, P2.5, P3.5, P4.5, P5.5, P6.5) are
+small — 4-5 screens each. **One fresh chat per phase** is the natural
+unit; these chats are typically 15-25 turns.
+
+**P7 cockpit is the exception** — 70 tasks across 4 dashboards, 7 ops
+queues, 8+1 BuildingDetail tabs, 5 AI-native surfaces. ONE chat for
+all of P7 will balloon. Recommended sub-chats:
+
+- **P7-shell** — router + Command + Settlement Monitor + Alerts dashboard
+- **P7-queues-1** — DRS Queue, LBRS Queue, Provider Verification
+- **P7-queues-2** — Electrician Certification, Financier Eligibility, Doc Review, Counterparties
+- **P7-buildingdetail** — 8 drill-down tabs + components
+- **P7-ai-native** — Query Layer, Agent Panels, Audit Log Viewer, Eval Harness, RBAC Console
+
+Each sub-chat 30-50 turns. Doctrine stays sharp; context stays lean.
+
+---
+
 **END CODEX-WEB AGENT PROMPT.** When you finish a task, append to §11
 and start the next item per §6. When in doubt, re-read §8 — it tells you
-when to stop.
+when to stop. When the chat feels long, re-read §12 — it tells you when
+to hand off to a fresh session.

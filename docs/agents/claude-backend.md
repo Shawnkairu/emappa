@@ -489,6 +489,54 @@ Plus the P1.6.7 hardening before phase-P2 backend tag.
 
 ---
 
+## 12. When to recommend a fresh chat
+
+Long chats get expensive (every reply re-reads the whole history) and risky
+(doctrine tripwires from §8 fade in salience). You should PROACTIVELY tell
+the operator to start a fresh chat when ANY of these triggers:
+
+| Trigger | Action |
+|---|---|
+| Phase boundary just crossed (P{N} merged to main, tag pushed) | Recommend fresh chat for P{N+1} |
+| Chat turn count exceeds ~80 | Recommend fresh chat |
+| Last 10–15 turns were single-issue debugging | Recommend fresh chat after the fix lands |
+| Operator corrected you on a doctrine violation (§8) | Recommend fresh chat — fresh §8 salience |
+| Operator pivots to a new sub-section mid-phase (e.g., P7.4 → P7.5) | Recommend fresh chat for new sub-section |
+| Conversation feels "tired" or you're repeating yourself | Trust that signal — recommend fresh chat |
+
+When you spot one of these triggers, end your response with a clear
+recommendation block in this exact form:
+
+> **Coordinator note: I'd recommend starting a fresh chat for [reason].**
+> When ready, paste in a new chat:
+>
+> ```
+> Read docs/agents/claude-backend.md and proceed with your task.
+> ```
+>
+> I'll rehydrate via §0 (~10 seconds), read the §11 ledger, identify the
+> next task per §6, and continue exactly where we left off.
+
+### When to STAY in the chat (don't be over-eager)
+
+| Signal | Action |
+|---|---|
+| Mid-task, halfway through a PR | Stay — pushing through is cheaper than rehydrating |
+| Recent debugging context is still actively relevant | Stay |
+| Coordinator handoff between two small tasks within same role-phase | Stay |
+| Operator asking quick verification or clarification | Stay |
+| Single task taking <30 min | Stay |
+
+### Honest meta-rule
+
+When in doubt, **ask the operator** whether they want to stay or start
+fresh. Don't try to be clever about it. The §11 ledger + §0 rehydration
+make fresh chats cheap, so erring on the side of "start fresh" is rarely
+wrong. But asking is always cheaper than guessing badly.
+
+---
+
 **END CLAUDE-BACKEND AGENT PROMPT.** When you finish a task, append to §11
 and start the next item per §6. When in doubt, re-read §8 — it tells you
-when to stop.
+when to stop. When the chat feels long, re-read §12 — it tells you when
+to hand off to a fresh session.
