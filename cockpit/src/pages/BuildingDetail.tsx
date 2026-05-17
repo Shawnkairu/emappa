@@ -31,17 +31,18 @@ import {
   type DrsSnapshot,
 } from "../api";
 import { SyntheticBadge, type SyntheticMode } from "../components/SyntheticBadge";
-
-type Tab = "overview" | "energy" | "pledges" | "drs" | "lbrs" | "ops" | "settlement" | "roof";
+import type { BuildingDetailTab } from "../router";
 
 type Props = {
   project: ProjectedBuilding;
   token: string;
   syntheticMode: SyntheticMode;
+  activeTab: BuildingDetailTab;
+  onTabChange: (tab: BuildingDetailTab) => void;
   onProjectChange: (project: ProjectedBuilding) => void;
 };
 
-const tabs: Array<{ id: Tab; label: string }> = [
+const tabs: Array<{ id: BuildingDetailTab; label: string }> = [
   { id: "overview", label: "Overview" },
   { id: "energy", label: "Energy" },
   { id: "pledges", label: "Pledges" },
@@ -61,8 +62,7 @@ const gateLabels: Array<{ key: string; label: string }> = [
   { key: "settlementDataTrusted", label: "Settlement data trusted" },
 ];
 
-export function BuildingDetail({ project, token, syntheticMode, onProjectChange }: Props) {
-  const [activeTab, setActiveTab] = useState<Tab>("overview");
+export function BuildingDetail({ project, token, syntheticMode, activeTab, onTabChange, onProjectChange }: Props) {
   const [sourceMode, setSourceMode] = useState<"synthetic" | "measured" | "both">("both");
   const [today, setToday] = useState<EnergyToday | null>(null);
   const [series, setSeries] = useState<EnergyReading[]>([]);
@@ -175,7 +175,7 @@ export function BuildingDetail({ project, token, syntheticMode, onProjectChange 
 
       <div className="tab-strip" role="tablist" aria-label="Building detail tabs">
         {tabs.map((tab) => (
-          <button key={tab.id} className={activeTab === tab.id ? "active" : ""} onClick={() => setActiveTab(tab.id)} type="button">
+          <button key={tab.id} className={activeTab === tab.id ? "active" : ""} onClick={() => onTabChange(tab.id)} type="button">
             {tab.label}
           </button>
         ))}

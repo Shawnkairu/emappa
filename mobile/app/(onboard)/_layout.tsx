@@ -16,7 +16,9 @@ export default function OnboardLayout() {
       <Stack.Screen name="welcome" options={{ title: "Welcome", headerShown: false }} />
       <Stack.Screen name="resident/index" options={{ title: "Join building" }} />
       <Stack.Screen name="resident/confirm" options={{ title: "Confirm building" }} />
-      <Stack.Screen name="resident/first-pledge" options={{ title: "First pledge" }} />
+      <Stack.Screen name="resident/load-profile" options={{ title: "Load estimate" }} />
+      <Stack.Screen name="resident/capacity-check" options={{ title: "Capacity check" }} />
+      <Stack.Screen name="resident/first-pledge" options={{ title: "Pledge or buy" }} />
       <Stack.Screen name="homeowner/address" options={{ title: "Home address" }} />
       <Stack.Screen name="homeowner/roof-capture" options={{ title: "Roof capture" }} />
       <Stack.Screen name="homeowner/terms" options={{ title: "Terms preview" }} />

@@ -23,23 +23,23 @@ import {
 import { PilotBanner } from "./components/PilotBanner";
 import type { SyntheticMode } from "./components/SyntheticBadge";
 import { BuildingDetail } from "./pages/BuildingDetail";
+import { useCockpitRouter } from "./router";
 
 const StressTest = lazy(() => import("./stress-test/StressTest.jsx"));
 
-type View = "command" | "stress";
 type StageFilter = "all" | ProjectedBuilding["project"]["stage"];
 type DecisionFilter = "all" | ProjectedBuilding["drs"]["decision"];
 type Session = ReturnType<typeof loadSession>;
 
-const navItems: Array<{ id: View; label: string }> = [
+const navItems: Array<{ id: "command" | "stress"; label: string }> = [
   { id: "command", label: "Command" },
   { id: "stress", label: "Stress Test" },
 ];
 
 export function App() {
+  const { route, navigateCommand, navigateStress, navigateBuilding } = useCockpitRouter();
   const [session, setSession] = useState<Session>(() => loadSession());
   const [checkingSession, setCheckingSession] = useState(Boolean(session));
-  const [view, setView] = useState<View>("command");
   const [projects, setProjects] = useState<ProjectedBuilding[]>([]);
   const [settlementDates, setSettlementDates] = useState<Record<string, SettlementPeriod | null>>({});
   const [selectedProjectId, setSelectedProjectId] = useState<string | null>(null);
@@ -52,6 +52,7 @@ export function App() {
   const [syntheticMode, setSyntheticMode] = useState<SyntheticMode>("mixed");
   const [loading, setLoading] = useState(false);
   const [error, setError] = useState<string | null>(null);
+  const routedBuildingId = route.view === "building" ? route.buildingId : null;
 
   useEffect(() => {
     if (!session) {
@@ -87,7 +88,7 @@ export function App() {
             Boolean((item as { project?: { id?: unknown } })?.project?.id),
         );
         setProjects(valid);
-        setSelectedProjectId((current) => current ?? valid[0]?.project.id ?? null);
+        setSelectedProjectId((current) => routedBuildingId ?? current ?? valid[0]?.project.id ?? null);
         return Promise.all(
           valid.map((item) =>
             getLatestSettlement(item.project.id, session.token)
@@ -101,7 +102,13 @@ export function App() {
       })
       .catch((loadError: Error) => setError(loadError.message))
       .finally(() => setLoading(false));
-  }, [session?.token, session?.user.role]);
+  }, [routedBuildingId, session?.token, session?.user.role]);
+
+  useEffect(() => {
+    if (routedBuildingId) {
+      setSelectedProjectId(routedBuildingId);
+    }
+  }, [routedBuildingId]);
 
   const syntheticScenario = useMemo(
     () => replaySyntheticScenario({ phase: scenarioPhase, failureMode: scenarioFailureMode }),
@@ -188,7 +195,12 @@ export function App() {
         <span className="session-meta">{session.user.email}</span>
         <nav>
           {navItems.map((item) => (
-            <button key={item.id} className={view === item.id ? "active" : ""} onClick={() => setView(item.id)}>
+            <button
+              key={item.id}
+              className={route.view === item.id ? "active" : ""}
+              onClick={item.id === "command" ? navigateCommand : navigateStress}
+              type="button"
+            >
               {item.label}
             </button>
           ))}
@@ -219,7 +231,7 @@ export function App() {
           </label>
         </div>
 
-        {view === "stress" ? (
+        {route.view === "stress" ? (
           <Suspense fallback={<div className="panel loading-panel">Loading stress-test cockpit...</div>}>
             <StressTest initialProject={projects[0]} />
           </Suspense>
@@ -279,7 +291,10 @@ export function App() {
                       <button
                         key={item.project.id}
                         className={`portfolio-row ${selectedProject?.project.id === item.project.id ? "active" : ""}`}
-                        onClick={() => setSelectedProjectId(item.project.id)}
+                        onClick={() => {
+                          setSelectedProjectId(item.project.id);
+                          navigateBuilding(item.project.id);
+                        }}
                         type="button"
                       >
                         <span>
@@ -369,6 +384,8 @@ export function App() {
                 project={selectedProject}
                 token={session.token}
                 syntheticMode={syntheticMode}
+                activeTab={route.view === "building" && selectedProject.project.id === route.buildingId ? route.tab : "overview"}
+                onTabChange={(tab) => navigateBuilding(selectedProject.project.id, tab)}
                 onProjectChange={replaceProject}
               />
             )}

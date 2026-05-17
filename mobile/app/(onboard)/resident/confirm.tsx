@@ -1,11 +1,10 @@
 import { Text } from "react-native";
 import { useRouter } from "expo-router";
 import { GlassCard } from "@emappa/ui";
-import { ActionButton, OnboardShell, useFinishOnboarding, useRequiredParams, styles } from "../_shared";
+import { ActionButton, OnboardShell, useRequiredParams, styles } from "../_shared";
 
 export default function ResidentConfirmBuildingScreen() {
   const router = useRouter();
-  const { finish, isSubmitting, error: finishError } = useFinishOnboarding("resident", "/(resident)/home");
   const { buildingId, name, address, kind, unitCount, unitNumber, manualFallback, inviteCode } = useRequiredParams<{
     buildingId: string;
     name: string;
@@ -29,24 +28,35 @@ export default function ResidentConfirmBuildingScreen() {
             onPress={() => {
               if (buildingId) {
                 router.push({
-                  pathname: "/(onboard)/resident/first-pledge",
-                  params: { buildingId, unitNumber },
+                  pathname: "/(onboard)/resident/load-profile",
+                  params: {
+                    buildingId,
+                    unitNumber,
+                    name,
+                    address,
+                    kind,
+                    unitCount,
+                    ...(inviteCode ? { inviteCode } : {}),
+                  },
                 });
                 return;
               }
-              void finish({
-                profile: {
+              router.push({
+                pathname: "/(onboard)/resident/load-profile",
+                params: {
+                  buildingId: "",
                   unitNumber,
-                  buildingName: name,
-                  buildingAddress: address,
-                  manualFallback: true,
+                  name,
+                  address,
+                  kind,
+                  unitCount,
+                  manualFallback: "true",
                 },
               });
             }}
-            disabled={isSubmitting}
             accessibilityLabel="Confirm this is my building"
           >
-            {isSubmitting ? "Saving…" : "This is my building"}
+            This is my building
           </ActionButton>
           <ActionButton onPress={() => router.replace("/(onboard)/resident")} variant="secondary" accessibilityLabel="Go back, wrong building">
             Wrong building
@@ -70,7 +80,6 @@ export default function ResidentConfirmBuildingScreen() {
             : "Confirm this is the building where your apartment will participate. Non-participating units remain on KPLC only."}
         </Text>
       </GlassCard>
-      {finishError ? <Text style={styles.error}>{finishError}</Text> : null}
     </OnboardShell>
   );
 }

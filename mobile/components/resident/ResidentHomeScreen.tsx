@@ -16,6 +16,7 @@ import { TokenPurchaseCTA } from "./TokenPurchaseCTA";
 import {
   canResidentBuyTokens,
   canEditPledge,
+  deriveApartmentAtsState,
   deriveBuildingAvailabilityState,
   deriveCapacityQueueStatus,
   isResidentLive,
@@ -41,6 +42,7 @@ function ResidentHomeContent({ building }: { building: ProjectedBuilding }) {
   const queueStatus = deriveCapacityQueueStatus(building);
   const live = isResidentLive(building);
   const showBuyTokens = canResidentBuyTokens(building);
+  const atsState = deriveApartmentAtsState(building);
   const queue = building.roleViews.resident.capacityQueue;
   const estimatedKwh = Math.round(view.monthlySolarKwh / 30);
 
@@ -62,7 +64,7 @@ function ResidentHomeContent({ building }: { building: ProjectedBuilding }) {
             disabled={false}
           />
           <LiveSupplyIndicator
-            atsState={showBuyTokens ? "activated" : "ats_installed_unverified"}
+            atsState={atsState}
             supply={showBuyTokens ? "solar" : "kplc"}
           />
           {showBuyTokens ? <TokenPurchaseCTA /> : null}
