@@ -287,6 +287,32 @@ git checkout -b task/P{N}.{g}.{t}-short-name
 
 ### PR size ceiling: **300 LOC diff.** Larger work splits into multiple tasks.
 
+### Push early, push often (commit ≠ shipped)
+
+**Commit is local — push is recoverable.** A `git commit` lives only in
+your local `.git/objects` until you push. If your machine dies, the
+commit dies with it. The work isn't "shipped" until it's on origin.
+
+Discipline:
+
+```sh
+# After EVERY meaningful commit on a task branch, push it:
+git push -u origin task/P{N}.{g}.{t}-short-name   # first push (with -u)
+# … more work, more commits …
+git push origin task/P{N}.{g}.{t}-short-name      # every subsequent commit
+```
+
+The task branch on origin acts as your durable backup. CI hasn't passed
+yet, the task isn't merged, but the work is safe. Re-push as you go,
+not just at the end.
+
+In our terminology:
+- **Local commit** = at risk
+- **Pushed to task branch** = safe, not accepted
+- **Merged to `agent/mobile`** = accepted into your agent's working state
+- **Merged to `main` (phase boundary, coordinator action)** = canonical project state
+- **Deployed** = live for users (P9+)
+
 ### Verify locally before push
 ```sh
 npm run ci          # full CI must be green
