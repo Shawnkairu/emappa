@@ -31,6 +31,19 @@ import {
   type DeploymentPhase,
 } from "../shared";
 import {
+  canRetraceRoof,
+  homeownerSiteEvidencePhotos,
+  photoStatusLabel,
+  photoStatusTone,
+  retraceDetail,
+  retraceHref,
+  roofConfidenceLabel,
+  roofConfidenceTone,
+  roofSourceLabel,
+  roofSourceTone,
+  type SiteEvidencePhoto,
+} from "./homeownerProfileLogic";
+import {
   homeownerCashflowTransactions,
   homeownerShareEarningsKes,
   homeownerSavingsOffsetKes,
@@ -473,6 +486,93 @@ export function HomeownerWalletScreen() {
   );
 }
 
+function HomeownerPropertyRoofCard({
+  building,
+  router,
+}: {
+  building: ApiBuilding;
+  router: ReturnType<typeof useRouter>;
+}) {
+  const source = building.roofSource;
+  const showRetrace = canRetraceRoof(source);
+
+  return (
+    <WhiteCard>
+      <Label>Property & roof</Label>
+      <Text style={styles.cardTitle}>{building.name}</Text>
+      <Text style={styles.bodyText}>{building.address}</Text>
+      <View style={styles.roofBadgeRow}>
+        <Pill tone={roofSourceTone(source)}>{roofSourceLabel(source)}</Pill>
+        <Pill tone={roofConfidenceTone(building.roofConfidence)}>{roofConfidenceLabel(building.roofConfidence)}</Pill>
+      </View>
+      <MiniRoofGraphic area={building.roofAreaM2} />
+      <InfoRows
+        rows={[
+          ["Kind", building.kind.replace("_", " ")],
+          ["Roof record", formatArea(building.roofAreaM2)],
+          ["Stage", formatStage(building.stage)],
+        ]}
+      />
+      <View style={styles.profileActionStack}>
+        {showRetrace ? (
+          <Pressable
+            accessibilityRole="button"
+            accessibilityLabel="Retrace roof on satellite map"
+            onPress={() => router.push(retraceHref(building) as never)}
+            style={styles.secondaryAction}
+          >
+            <Ionicons name="scan-outline" color={colors.orangeDeep} size={18} />
+            <View style={{ flex: 1 }}>
+              <Text style={styles.secondaryActionTitle}>Retrace roof</Text>
+              <Text style={styles.secondaryActionNote}>{retraceDetail(source)}</Text>
+            </View>
+            <Ionicons name="chevron-forward" color={colors.muted} size={18} />
+          </Pressable>
+        ) : null}
+        <PrimaryButton onPress={() => router.push("/(homeowner)/_embedded/roof-detail")}>Review polygon</PrimaryButton>
+      </View>
+    </WhiteCard>
+  );
+}
+
+function SiteEvidencePhotoGrid({ photos }: { photos: SiteEvidencePhoto[] }) {
+  const dbPhotos = photos.filter((photo) => photo.group === "db");
+  const meterPhotos = photos.filter((photo) => photo.group === "meter");
+
+  return (
+    <WhiteCard>
+      <Label>Site evidence</Label>
+      <Text style={styles.bodyText}>Distribution board and utility meter photos gate electrician scheduling and LBRS.</Text>
+      <PhotoEvidenceSection title="DB photos" photos={dbPhotos} />
+      <PhotoEvidenceSection title="Meter photos" photos={meterPhotos} />
+    </WhiteCard>
+  );
+}
+
+function PhotoEvidenceSection({ title, photos }: { title: string; photos: SiteEvidencePhoto[] }) {
+  return (
+    <View style={styles.photoSection}>
+      <Text style={styles.photoSectionTitle}>{title}</Text>
+      <View style={styles.photoGrid}>
+        {photos.map((photo) => (
+          <View key={photo.id} style={styles.photoTile}>
+            <View style={styles.photoThumb}>
+              <Ionicons
+                name={photo.group === "db" ? "flash-outline" : "speedometer-outline"}
+                color={colors.orangeDeep}
+                size={22}
+              />
+            </View>
+            <Text style={styles.photoLabel}>{photo.label}</Text>
+            <Pill tone={photoStatusTone(photo.status)}>{photoStatusLabel(photo.status)}</Pill>
+            <Text style={styles.photoDetail}>{photo.detail}</Text>
+          </View>
+        ))}
+      </View>
+    </View>
+  );
+}
+
 export function HomeownerProfileScreen() {
   const { data, error, isLoading, refetch } = useHomeownerSnapshot();
   const { clearSession } = useAuth();
@@ -505,24 +605,14 @@ export function HomeownerProfileScreen() {
               </WhiteCard>
 
               {snapshot.building ? (
-                <WhiteCard>
-                  <Label>Home</Label>
-                  <Text style={styles.cardTitle}>{snapshot.building.name}</Text>
-                  <Text style={styles.bodyText}>{snapshot.building.address}</Text>
-                  <MiniRoofGraphic area={snapshot.building.roofAreaM2} />
-                  <InfoRows
-                    rows={[
-                      ["Kind", snapshot.building.kind.replace("_", " ")],
-                      ["Roof record", formatArea(snapshot.building.roofAreaM2)],
-                      ["Source", snapshot.building.roofSource ?? "Not captured"],
-                      ["Confidence", formatPercent(snapshot.building.roofConfidence ?? 0)],
-                    ]}
-                  />
-                  <PrimaryButton onPress={() => router.push("/(homeowner)/_embedded/roof-detail")}>Edit roof</PrimaryButton>
-                </WhiteCard>
+                <HomeownerPropertyRoofCard building={snapshot.building} router={router} />
               ) : (
                 <NoBuildingCard />
               )}
+
+              {snapshot.building ? (
+                <SiteEvidencePhotoGrid photos={homeownerSiteEvidencePhotos(snapshot.building)} />
+              ) : null}
 
               <WhiteCard>
                 <Label>Trust</Label>
@@ -1452,6 +1542,43 @@ const styles = StyleSheet.create({
   profileName: { color: colors.text, fontSize: 22, fontWeight: "900", letterSpacing: -0.5, marginTop: 4 },
   profileEmail: { color: colors.muted, fontSize: 13, fontWeight: "600" },
   pillRow: { flexDirection: "row", flexWrap: "wrap", gap: 8, justifyContent: "center", marginTop: 6 },
+  roofBadgeRow: { flexDirection: "row", flexWrap: "wrap", gap: 8, marginTop: 12 },
+  profileActionStack: { gap: 10, marginTop: 8 },
+  secondaryAction: {
+    alignItems: "center",
+    backgroundColor: `${colors.orangeDeep}08`,
+    borderColor: `${colors.orangeDeep}24`,
+    borderRadius: 16,
+    borderWidth: 1,
+    flexDirection: "row",
+    gap: 12,
+    paddingHorizontal: 14,
+    paddingVertical: 12,
+  },
+  secondaryActionTitle: { color: colors.text, fontSize: typography.small, fontWeight: "800" },
+  secondaryActionNote: { color: colors.muted, fontSize: 12, fontWeight: "600", lineHeight: 17, marginTop: 3 },
+  photoSection: { marginTop: 16 },
+  photoSectionTitle: { color: colors.text, fontSize: 13, fontWeight: "800", letterSpacing: 0.2, marginBottom: 10 },
+  photoGrid: { flexDirection: "row", flexWrap: "wrap", gap: 10 },
+  photoTile: {
+    backgroundColor: `${colors.orangeDeep}06`,
+    borderColor: colors.border,
+    borderRadius: 16,
+    borderWidth: StyleSheet.hairlineWidth,
+    gap: 6,
+    padding: 12,
+    width: "47%",
+  },
+  photoThumb: {
+    alignItems: "center",
+    backgroundColor: `${colors.orangeDeep}12`,
+    borderRadius: 12,
+    height: 52,
+    justifyContent: "center",
+    width: 52,
+  },
+  photoLabel: { color: colors.text, fontSize: 12, fontWeight: "800" },
+  photoDetail: { color: colors.muted, fontSize: 11, fontWeight: "600", lineHeight: 15 },
   cardTitle: {
     color: colors.text,
     fontSize: typography.title,
