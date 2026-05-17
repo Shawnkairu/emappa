@@ -50,8 +50,26 @@ _EXEMPT_PATH_PATTERNS: tuple[re.Pattern[str], ...] = (
 
 # Paths that REQUIRE a `reason` body field. Grow this as endpoints
 # adopt the CR-2 contract per phase plan.
+#
+# Belt + suspenders: every handler enrolled here ALSO has a pydantic
+# `reason: str = Field(min_length=1)` on its request body. The middleware
+# gate runs FIRST (returns 400 `audit_reason_required`), so adding a path
+# here means any client that drops the reason field gets a deterministic
+# 400 from middleware rather than a 422 from pydantic — and it's robust
+# against future handlers being refactored in a way that accidentally
+# drops the pydantic field.
+#
+# `/prepaid/commit` is intentionally absent: it's the legacy façade
+# whose request body has no `reason` field, and ADR 0002 PR 2 will
+# return 410 Gone for it after the parity observation window.
 AUDIT_REQUIRED_PATHS: tuple[re.Pattern[str], ...] = (
-    # Populated by later P0.3.x / P1.6.x / ... PRs.
+    # P1.6.2a — pledges + token purchases (Scenario A §5).
+    re.compile(r"^/pledges$"),
+    re.compile(r"^/pledges/[^/]+/cancel$"),
+    re.compile(r"^/tokens/purchase$"),
+    # P1.6.3–6 — resident mutation routes (Scenario A §6, §7).
+    re.compile(r"^/residents/[^/]+/load-profile$"),
+    re.compile(r"^/residents/[^/]+/queue-request$"),
 )
 
 
