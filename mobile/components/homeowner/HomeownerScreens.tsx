@@ -16,7 +16,23 @@ import { Ionicons } from "@expo/vector-icons";
 import type { DrsResult, PrepaidCommitment, User, WalletTransaction } from "@emappa/shared";
 import { colors, Label, Pill, PrimaryButton, typography } from "@emappa/ui";
 import { useAuth } from "../AuthContext";
+import { PilotBanner } from "../PilotBanner";
+import { ProjectHero } from "../ProjectHero";
 import { ProfileEssentials } from "../ProfileEssentials";
+import {
+  BlockerPill,
+  DeploymentProgressBar,
+  DRSProgressCard,
+  GenerationPanel,
+  OwnershipRingChart,
+  TokenBalanceHero,
+  type DeploymentPhase,
+} from "../shared";
+import { ConsumptionTimeline } from "./ConsumptionTimeline";
+import { homeownerOwnershipSegments } from "./homeownerOwnershipSegments";
+import { homeownerSizingWarnings } from "./homeownerSizingWarnings";
+import { SizingWarningList } from "./SizingWarningList";
+import { SystemSizingExplainer } from "./SystemSizingExplainer";
 import { SystemEnergyImmersiveHero } from "../energy/SystemImmersiveOverview";
 import { readPilotSession } from "../session";
 import { useApi } from "../../lib/api";
@@ -103,7 +119,7 @@ export function HomeownerHomeScreen() {
   const router = useRouter();
 
   return (
-    <HomeownerShell title="Roof" subtitle="Permission, readiness, next step.">
+    <HomeownerShell title="Home" subtitle="Project readiness and live solar wallet, gated by deployment stage.">
       <SnapshotState data={data} error={error} isLoading={isLoading} refetch={refetch}>
         {(snapshot) => {
           if (!snapshot.building) {
@@ -118,31 +134,99 @@ export function HomeownerHomeScreen() {
             );
           }
 
+          const isLive = snapshot.building.stage === "live";
           const readiness = readinessLabel(snapshot.drs);
           const blockers = snapshot.drs?.reasons ?? [];
           const permission = roofPermissionLabel(snapshot.building);
           const nextAction = nextHomeownerAction(snapshot.building, snapshot.drs);
+          const kesBalance = snapshot.balance?.confirmedTotalKes ?? 0;
+          const generation = sum(snapshot.energy?.generation_kwh);
+          const load = sum(snapshot.energy?.load_kwh);
+          const solarToday = Math.min(generation, load);
+          const coverage = load > 0 ? solarToday / load : 0;
+          const deployment = deploymentProgress(snapshot.building.stage);
 
           return (
             <>
-              <RoofStatusHero building={snapshot.building} readiness={readiness} permission={permission} />
+              <PilotBanner compact />
+
+              {isLive ? (
+                <>
+                  <TokenBalanceHero
+                    eyebrow="Home solar wallet"
+                    title="Pledged token balance"
+                    subtitle={`Today's solar coverage ${formatPercent(coverage)} · ${formatKwh(solarToday)} matched to home load.`}
+                    kesValue={formatKes(kesBalance)}
+                    kwhLabel="Today's solar"
+                    kwhValue={formatKwh(solarToday)}
+                  />
+                  <ProjectHero
+                    name={snapshot.building.name}
+                    location={snapshot.building.address}
+                    readinessLabel={readiness}
+                    summary={`${formatStage(snapshot.building.stage)} · ${permission} · DRS and deployment retrospective.`}
+                  />
+                </>
+              ) : (
+                <>
+                  <View style={styles.heroStack}>
+                    <ProjectHero
+                      name={snapshot.building.name}
+                      location={snapshot.building.address}
+                      readinessLabel={readiness}
+                      summary="Cooking up your energy project — funding, supplier lock, and go-live stay gated until readiness clears."
+                    />
+                    {snapshot.drs ? <DRSProgressCard drs={snapshot.drs} /> : null}
+                    <WhiteCard>
+                      <DeploymentProgressBar
+                        label="Deployment path"
+                        phases={deployment.phases}
+                        percent={deployment.percent}
+                      />
+                      {blockers.length > 0 ? (
+                        <View style={styles.blockerStack}>
+                          {blockers.slice(0, 3).map((reason) => (
+                            <BlockerPill key={reason} label={reason} severity="warning" />
+                          ))}
+                        </View>
+                      ) : null}
+                    </WhiteCard>
+                  </View>
+                  <TokenBalanceHero
+                    title="Tokens activate once your project goes live"
+                    subtitle="Pledge wallet and solar allocation unlock only after physical go-live."
+                    disabled
+                  />
+                </>
+              )}
 
               <MetricGrid
                 metrics={[
                   { label: "Readiness", value: readiness, detail: blockers[0] ?? "No blocker reported" },
-                  { label: "Status", value: formatStage(snapshot.building.stage), detail: "Project path" },
+                  { label: "Status", value: formatStage(snapshot.building.stage), detail: isLive ? "Live and connected" : "Pre-live project path" },
                   { label: "Permission", value: permission, detail: "Roof access record" },
                   { label: "Next", value: nextAction.label, detail: nextAction.detail },
                 ]}
               />
 
               <ActionRail
-                actions={[
-                  ["Roof detail", "/(homeowner)/_embedded/roof-detail"],
-                  ["Readiness", "/(homeowner)/_embedded/drs"],
-                  ["Terms", "/(homeowner)/_embedded/approve-terms"],
-                  ["Timeline", "/(homeowner)/_embedded/deployment"],
-                ]}
+                actions={
+                  isLive
+                    ? [
+                        ["Pledge", "/(homeowner)/wallet"],
+                        ["View energy", "/(homeowner)/energy"],
+                        ["Wallet", "/(homeowner)/wallet"],
+                        ["Roof detail", "/(homeowner)/_embedded/roof-detail"],
+                        ["Profile", "/(homeowner)/profile"],
+                      ]
+                    : [
+                        ["View blockers", "/(homeowner)/_embedded/drs"],
+                        ["Approve terms", "/(homeowner)/_embedded/approve-terms"],
+                        ["Compare bill", "/(homeowner)/_embedded/compare-today"],
+                        ["Timeline", "/(homeowner)/_embedded/deployment"],
+                        ["Roof detail", "/(homeowner)/_embedded/roof-detail"],
+                      ]
+                }
               />
             </>
           );
@@ -154,15 +238,17 @@ export function HomeownerHomeScreen() {
 
 export function HomeownerEnergyScreen() {
   const { data, error, isLoading, refetch } = useHomeownerSnapshot();
+  const router = useRouter();
 
   return (
-    <HomeownerShell title="Energy" subtitle="Roof flow, not asset ownership." immersive>
+    <HomeownerShell title="Energy" subtitle="Usage, generation, and rooftop economics." immersive>
       <SnapshotState data={data} error={error} isLoading={isLoading} refetch={refetch}>
         {(snapshot) => {
           if (!snapshot.building) {
             return <NoBuildingCard />;
           }
 
+          const isLive = snapshot.building.stage === "live";
           const generation = sum(snapshot.energy?.generation_kwh);
           const load = sum(snapshot.energy?.load_kwh);
           const sold = Math.min(generation, load);
@@ -173,21 +259,41 @@ export function HomeownerEnergyScreen() {
           const peakGen = genSeries.length ? Math.max(...genSeries) : 0;
           const peakLoad = loadSeries.length ? Math.max(...loadSeries) : 0;
           const batteryStatus = peakGen > peakLoad * 1.08 ? "charging" : peakLoad > peakGen * 1.08 ? "discharging" : "idle";
-          const savingsKesPilot = Math.round(Math.min(generation, load) * 10);
+          const savingsKesToday = Math.round(sold * 10);
+          const ownedShare = ownershipPercent(snapshot.ownership);
+          const ownershipSegments = homeownerOwnershipSegments(snapshot.ownership, ownedShare);
+          const syntheticMode = snapshot.building.dataSource === "mixed" ? "mixed" : "projected";
+          const periodGeneration = snapshot.settlement?.eGen ?? generation * 30;
+          const periodSold = snapshot.settlement?.eSold ?? sold * 30;
+          const periodCoverage = periodGeneration > 0 ? periodSold / periodGeneration : coverage;
+          const tokenBurnKes = snapshot.balance?.confirmedTotalKes
+            ? Math.max(0, snapshot.balance.confirmedTotalKes - (snapshot.walletBalance?.kes ?? 0))
+            : undefined;
+          const sizingWarnings = homeownerSizingWarnings({
+            generationKwh: generation,
+            loadKwh: load,
+            isLive,
+            eGen: snapshot.settlement?.eGen,
+            eSold: snapshot.settlement?.eSold,
+            eWaste: snapshot.settlement?.eWaste,
+          });
+          const arrayKw = snapshot.building.roofAreaM2 ? Math.min(12, snapshot.building.roofAreaM2 * 0.12) : undefined;
+          const batteryKwh = arrayKw ? arrayKw * 2.2 : undefined;
 
           return (
             <>
+              <PilotBanner compact />
               <View style={{ marginHorizontal: -20, marginTop: -8 }}>
                 <SystemEnergyImmersiveHero
                   siteName={snapshot.building.name}
-                  weatherHint="Pilot · synthetic"
+                  weatherHint={isLive ? "Live · building feed" : "Pre-live · projected"}
                   generationKwhToday={generation}
                   loadKwhToday={load}
                   generationHourly={genSeries.length ? genSeries : [generation / 24]}
                   loadHourly={loadSeries.length ? loadSeries : [load / 24]}
                   batterySoc={Math.min(0.96, Math.max(0.1, 0.2 + utilization * 0.65))}
                   batteryStatus={batteryStatus}
-                  savingsKesLabel={formatKes(savingsKesPilot)}
+                  savingsKesLabel={formatKes(savingsKesToday)}
                   summaryCards={[
                     { label: "Used today", value: formatKwh(load), hint: "Household", icon: "home-outline" },
                     { label: "Produced", value: formatKwh(generation), hint: "Roof path", icon: "sunny-outline" },
@@ -195,19 +301,63 @@ export function HomeownerEnergyScreen() {
                   ]}
                 />
               </View>
+
               <EnergyFlowCard generation={generation} load={load} source={snapshot.building.dataSource ?? "unreported"} />
-              <MetricGrid
-                metrics={[
-                  { label: "Produced", value: formatKwh(generation), detail: "Provider system" },
-                  { label: "Home use", value: formatKwh(load), detail: "Trailing 24h" },
-                  { label: "Matched", value: formatPercent(coverage), detail: "Served by roof flow" },
-                ]}
+
+              <GenerationPanel
+                todayKwh={generation}
+                periodKwh={periodGeneration}
+                retainedSharePct={ownedShare}
+                hourlyGeneration={genSeries}
+                syntheticMode={syntheticMode}
+                alwaysVisible
+                onOwnershipPress={
+                  ownershipSegments
+                    ? () => router.push("/(homeowner)/_embedded/marketplace")
+                    : undefined
+                }
               />
+
+              {ownershipSegments ? (
+                <WhiteCard>
+                  <Label>Share split</Label>
+                  <OwnershipRingChart
+                    segments={ownershipSegments}
+                    centerLabel="You retain"
+                    centerValue={formatPercent(ownedShare)}
+                  />
+                  <Pressable accessibilityRole="button" onPress={() => router.push("/(homeowner)/_embedded/marketplace")}>
+                    <Text style={styles.linkText}>Ownership & buy-back</Text>
+                  </Pressable>
+                </WhiteCard>
+              ) : null}
+
+              <SystemSizingExplainer
+                arrayKw={arrayKw}
+                batteryKwh={batteryKwh}
+                dailyLoadKwh={load}
+                roofAreaM2={snapshot.building.roofAreaM2}
+              />
+
+              <ConsumptionTimeline
+                daily={{ kwh: load, savingsKes: savingsKesToday, coverage, tokenBurnKes }}
+                weekly={{ kwh: load * 7, savingsKes: savingsKesToday * 7, coverage }}
+                monthly={{
+                  kwh: periodGeneration,
+                  savingsKes: snapshot.settlement?.revenueKes ?? savingsKesToday * 30,
+                  coverage: periodCoverage,
+                  tokenBurnKes: tokenBurnKes ? tokenBurnKes * 4 : undefined,
+                }}
+              />
+
+              <SizingWarningList warnings={sizingWarnings} />
+
               <WhiteCard>
                 <Label>Truth</Label>
                 <Text style={styles.cardTitle}>You control access to the roof.</Text>
                 <Text style={styles.bodyText}>
-                  The solar array is a provider asset. Income only follows monetized energy and settlement records.
+                  The solar array is a provider asset. Income only follows monetized energy and settlement records — not
+                  self-payment through your own pledge wallet.
                 </Text>
               </WhiteCard>
             </>
@@ -990,6 +1140,23 @@ function formatArea(value?: number | null) {
   return value ? `${Math.round(value).toLocaleString()} m2` : "Not captured";
 }
 
+function deploymentProgress(stage: ApiStage) {
+  const stages: ApiStage[] = ["listed", "qualifying", "funding", "installing", "live"];
+  const current = Math.max(0, stages.indexOf(stage));
+  const percent = Math.round(((current + 1) / stages.length) * 100);
+  const phaseLabels = ["Qualifying", "Funding", "Installing", "Live"] as const;
+  const phases: DeploymentPhase[] = phaseLabels.map((label, index) => {
+    const phaseIndex = index + 1;
+    return {
+      key: label.toLowerCase(),
+      label,
+      complete: current > phaseIndex,
+      current: current === phaseIndex,
+    };
+  });
+  return { percent, phases };
+}
+
 function formatStage(stage: string) {
   return stage.replace(/_/g, " ").replace(/\b\w/g, (letter) => letter.toUpperCase());
 }
@@ -1074,6 +1241,8 @@ const styles = StyleSheet.create({
   },
   subtitle: { color: colors.muted, fontSize: typography.body, lineHeight: 22, marginTop: 4 },
   stack: { gap: 16, marginTop: 18 },
+  heroStack: { gap: 14 },
+  blockerStack: { flexDirection: "row", flexWrap: "wrap", gap: 8, marginTop: 12 },
   actionRail: { gap: 8, paddingVertical: 2 },
   actionPill: {
     borderColor: `${colors.orangeDeep}40`,
@@ -1084,6 +1253,7 @@ const styles = StyleSheet.create({
     paddingVertical: 10,
   },
   actionText: { color: colors.orangeDeep, fontSize: 12, fontWeight: "800" },
+  linkText: { color: colors.orangeDeep, fontSize: typography.small, fontWeight: "800", marginTop: 4 },
   metricGrid: { flexDirection: "row", flexWrap: "wrap", gap: 10 },
   metricItem: { width: "48%" },
   metricCard: { minHeight: 118, padding: 14 },
