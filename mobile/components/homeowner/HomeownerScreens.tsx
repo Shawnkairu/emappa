@@ -21,13 +21,22 @@ import { ProjectHero } from "../ProjectHero";
 import { ProfileEssentials } from "../ProfileEssentials";
 import {
   BlockerPill,
+  CashflowLedger,
   DeploymentProgressBar,
   DRSProgressCard,
   GenerationPanel,
+  OwnershipPositionCard,
   OwnershipRingChart,
   TokenBalanceHero,
   type DeploymentPhase,
 } from "../shared";
+import {
+  homeownerCashflowTransactions,
+  homeownerShareEarningsKes,
+  homeownerSavingsOffsetKes,
+  pledgeStatusTone,
+  toCashflowLedgerRows,
+} from "./homeownerWalletLogic";
 import { ConsumptionTimeline } from "./ConsumptionTimeline";
 import { homeownerOwnershipSegments } from "./homeownerOwnershipSegments";
 import { homeownerSizingWarnings } from "./homeownerSizingWarnings";
@@ -112,7 +121,7 @@ interface HomeownerSnapshot {
 
 type EmbeddedKind = "drs" | "deployment" | "approve-terms" | "compare-today" | "roof-detail" | "marketplace";
 
-const MONEY_KINDS = new Set(["royalty", "capital_return"]);
+type WalletSegment = "cashflow" | "ownership" | "pledges";
 
 export function HomeownerHomeScreen() {
   const { data, error, isLoading, refetch } = useHomeownerSnapshot();
@@ -370,47 +379,91 @@ export function HomeownerEnergyScreen() {
 
 export function HomeownerWalletScreen() {
   const { data, error, isLoading, refetch } = useHomeownerSnapshot();
-  const [segment, setSegment] = useState<"income" | "account">("income");
+  const [segment, setSegment] = useState<WalletSegment>("cashflow");
 
   return (
-    <HomeownerShell title="Wallet" subtitle="Consumption, savings, external monetization, and ownership — no host royalty on your own roof.">
+    <HomeownerShell title="Wallet" subtitle="Three streams — pledges, zero host royalty on your roof, and external share earnings only.">
       <SnapshotState data={data} error={error} isLoading={isLoading} refetch={refetch}>
         {(snapshot) => {
           if (!snapshot.building) {
             return <NoBuildingCard />;
           }
 
-          const savingsOffset = snapshot.transactions
-            .filter((tx) => tx.kind === "royalty")
-            .reduce((total, tx) => total + Math.max(0, tx.amountKes), 0);
-          const shareEarnings = snapshot.transactions
-            .filter((tx) => tx.kind === "capital_return")
-            .reduce((total, tx) => total + Math.max(0, tx.amountKes), 0);
+          const isLive = snapshot.building.stage === "live";
+          const generation = sum(snapshot.energy?.generation_kwh);
+          const load = sum(snapshot.energy?.load_kwh);
+          const pledgedKes = snapshot.balance?.confirmedTotalKes ?? 0;
+          const savingsOffset = homeownerSavingsOffsetKes({
+            generationKwh: generation,
+            loadKwh: load,
+            settlementSold: snapshot.settlement?.eSold,
+          });
+          const shareEarnings = homeownerShareEarningsKes(snapshot.transactions);
           const ownedShare = ownershipPercent(snapshot.ownership);
+          const cashflowRows = toCashflowLedgerRows(snapshot.transactions);
 
           return (
             <>
-              <IncomeHero royalties={savingsOffset} shareEarnings={shareEarnings} walletBalance={snapshot.walletBalance?.kes ?? 0} />
-              <MetricGrid
-                metrics={[
-                  { label: "Savings / external", value: formatKes(savingsOffset + shareEarnings), detail: "Not host royalty on self-use" },
-                  { label: "Account", value: formatKes(snapshot.walletBalance?.kes ?? 0), detail: "Wallet balance" },
-                  { label: "Share record", value: formatPercent(ownedShare), detail: "Cashflow position" },
-                ]}
+              <PilotBanner compact />
+              <WalletStreamsHero
+                pledgedKes={pledgedKes}
+                hostRoyaltyKes={0}
+                savingsOffsetKes={savingsOffset}
+                shareEarningsKes={shareEarnings}
+                isLive={isLive}
               />
 
               <Segmented
                 value={segment}
                 options={[
-                  ["income", "Income"],
-                  ["account", "Account"],
+                  ["cashflow", "Cashflow"],
+                  ["ownership", "Ownership"],
+                  ["pledges", "Pledges"],
                 ]}
                 onChange={setSegment}
               />
 
-              {segment === "income" ? <TransactionList transactions={snapshot.transactions.filter((tx) => MONEY_KINDS.has(tx.kind))} /> : null}
-              {segment === "account" ? (
-                <AccountPanel user={snapshot.user} positions={snapshot.ownership} ownedShare={ownedShare} />
+              {segment === "cashflow" ? (
+                <>
+                  <WhiteCard>
+                    <Label>Cashflow</Label>
+                    <Text style={styles.bodyText}>
+                      Token spend and avoided grid cost stay separate from ownership payouts. Self-consumption is savings,
+                      not cash you earned by paying yourself.
+                    </Text>
+                    <Row label="Wallet balance" value={formatKes(snapshot.walletBalance?.kes ?? 0)} note="Posted account balance" />
+                    <Row label="Avoided grid cost" value={formatKes(savingsOffset)} note="Solar matched to home load — not host royalty" />
+                  </WhiteCard>
+                  {cashflowRows.length > 0 ? (
+                    <WhiteCard>
+                      <CashflowLedger
+                        title="Chronological"
+                        rows={cashflowRows}
+                        footer="Host royalty lines are hidden on your own roof. Export, trading, and third-party use only create ownership cash."
+                      />
+                    </WhiteCard>
+                  ) : (
+                    <EmptyCard
+                      icon="wallet-outline"
+                      title="No cashflow rows yet"
+                      body="Pledges, solar delivery savings, and external monetization appear here once settlement posts."
+                    />
+                  )}
+                </>
+              ) : null}
+
+              {segment === "ownership" ? (
+                <WalletOwnershipPanel
+                  buildingName={snapshot.building.name}
+                  ownedShare={ownedShare}
+                  shareEarningsKes={shareEarnings}
+                  settlement={snapshot.settlement}
+                  positions={snapshot.ownership}
+                />
+              ) : null}
+
+              {segment === "pledges" ? (
+                <WalletPledgesPanel pledgedKes={pledgedKes} history={snapshot.pledgeHistory} isLive={isLive} />
               ) : null}
             </>
           );
@@ -752,44 +805,130 @@ function Segmented<TValue extends string>({
   );
 }
 
-function TransactionList({ transactions }: { transactions: WalletTransaction[] }) {
-  if (transactions.length === 0) {
-    return <EmptyCard icon="wallet-outline" title="No external cashflow yet" body="Savings and export/trading credits appear when monetized solar is settled." />;
-  }
-
+function WalletStreamsHero({
+  pledgedKes,
+  hostRoyaltyKes,
+  savingsOffsetKes,
+  shareEarningsKes,
+  isLive,
+}: {
+  pledgedKes: number;
+  hostRoyaltyKes: number;
+  savingsOffsetKes: number;
+  shareEarningsKes: number;
+  isLive: boolean;
+}) {
   return (
-    <WhiteCard>
-      <Label>Income</Label>
-      {transactions.map((tx) => (
-        <Row key={tx.id} label={tx.reference} value={formatKes(tx.amountKes)} note={`${tx.kind} · ${formatDate(tx.at)}`} />
-      ))}
-    </WhiteCard>
+    <MetricGrid
+      metrics={[
+        {
+          label: "Pledged total",
+          value: formatKes(pledgedKes),
+          detail: isLive ? "Project contributions · tokens on home path" : "Pre-live · activates at go-live",
+        },
+        {
+          label: "Host royalty",
+          value: formatKes(hostRoyaltyKes),
+          detail: "Zero on your own roof",
+        },
+        {
+          label: "Share / external",
+          value: formatKes(shareEarningsKes),
+          detail: `Savings offset ${formatKes(savingsOffsetKes)} shown in cashflow`,
+        },
+      ]}
+    />
   );
 }
 
-function AccountPanel({ user, positions, ownedShare }: { user: User; positions: OwnershipPosition[]; ownedShare: number }) {
+function WalletOwnershipPanel({
+  buildingName,
+  ownedShare,
+  shareEarningsKes,
+  settlement,
+  positions,
+}: {
+  buildingName: string;
+  ownedShare: number;
+  shareEarningsKes: number;
+  settlement: SettlementPeriod | null;
+  positions: OwnershipPosition[];
+}) {
   const router = useRouter();
+  const retainedPct = Math.round(ownedShare * 1000) / 10;
+  const externalOnly = settlement?.revenueKes ? Math.round(settlement.revenueKes * Math.max(0, 1 - ownedShare)) : undefined;
+
   return (
-    <WhiteCard>
-      <Label>Account</Label>
-      <Text style={styles.cardTitle}>{user.displayName ?? user.email}</Text>
-      <Text style={styles.bodyText}>{user.email}</Text>
-      {positions.length === 0 ? (
-        <Row label="Share record" value="None" note="No cashflow position was returned." />
-      ) : (
-        positions.map((position, index) => (
-          <Row
-            key={`${position.ownerId ?? "owner"}-${index}`}
-            label={position.ownerRole ?? "cashflow"}
-            value={formatPercent(positionShare(position))}
-            note={position.ownerId ?? "Record id unavailable"}
-          />
-        ))
-      )}
-      {ownedShare < 1 ? (
-        <PrimaryButton onPress={() => router.push("/(homeowner)/_embedded/marketplace")}>Review shares</PrimaryButton>
+    <>
+      <OwnershipPositionCard
+        title={buildingName}
+        sharePct={retainedPct}
+        valueKes={externalOnly !== undefined ? formatKes(externalOnly) : undefined}
+        poolLabel="Retained economics"
+        detail="Payouts only from net metering, export credit, trading, or third-party consumption — never from your own token spend."
+        buyBackAvailable={ownedShare < 1}
+      />
+      {positions.length > 0 ? (
+        <WhiteCard>
+          <Label>Positions</Label>
+          {positions.map((position, index) => (
+            <Row
+              key={`${position.ownerId ?? "owner"}-${index}`}
+              label={position.ownerRole ?? "cashflow"}
+              value={formatPercent(positionShare(position))}
+              note={position.ownerId ?? "Record id unavailable"}
+            />
+          ))}
+        </WhiteCard>
       ) : null}
-    </WhiteCard>
+      <WhiteCard>
+        <Label>External monetization</Label>
+        <Row label="Settled share earnings" value={formatKes(shareEarningsKes)} note="capital_return rows only" />
+        {ownedShare < 1 ? (
+          <PrimaryButton onPress={() => router.push("/(homeowner)/_embedded/marketplace")}>Buy back shares</PrimaryButton>
+        ) : null}
+      </WhiteCard>
+    </>
+  );
+}
+
+function WalletPledgesPanel({
+  pledgedKes,
+  history,
+  isLive,
+}: {
+  pledgedKes: number;
+  history: PrepaidCommitment[];
+  isLive: boolean;
+}) {
+  return (
+    <>
+      <TokenBalanceHero
+        eyebrow="Pledge stream"
+        title={isLive ? "Confirmed pledge balance" : "Pledges before go-live"}
+        subtitle={isLive ? "Tokens unlock on your home path after go-live." : "Edit or cancel pledges until activation; no money moves at onboarding."}
+        kesValue={formatKes(pledgedKes)}
+        disabled={!isLive && pledgedKes === 0}
+      />
+      <WhiteCard>
+        <Label>Pledge history</Label>
+        {history.length === 0 ? (
+          <Text style={styles.bodyText}>No pledges recorded yet.</Text>
+        ) : (
+          history.map((item) => (
+            <View key={item.id} style={styles.pledgeRow}>
+              <View style={{ flex: 1 }}>
+                <Text style={styles.rowLabel}>{formatKes(item.amountKes)}</Text>
+                <Text style={styles.rowNote}>
+                  {item.paymentMethod} · {new Date(item.createdAt).toLocaleDateString()}
+                </Text>
+              </View>
+              <Pill tone={pledgeStatusTone(item.status)}>{item.status}</Pill>
+            </View>
+          ))
+        )}
+      </WhiteCard>
+    </>
   );
 }
 
@@ -1079,47 +1218,6 @@ function FlowNode({ icon, label }: { icon: keyof typeof Ionicons.glyphMap; label
   );
 }
 
-function IncomeHero({
-  royalties,
-  shareEarnings,
-  walletBalance,
-}: {
-  royalties: number;
-  shareEarnings: number;
-  walletBalance: number;
-}) {
-  return (
-    <WhiteCard style={styles.heroCard}>
-      <View style={styles.heroTopRow}>
-        <View>
-          <Label>Available account</Label>
-          <Text style={styles.heroTitle}>{formatKes(walletBalance)}</Text>
-        </View>
-        <IconBadge name="wallet-outline" />
-      </View>
-      <View style={styles.incomeBars}>
-        <IncomeBar label="Roof income" value={royalties} max={Math.max(royalties, shareEarnings, 1)} />
-        <IncomeBar label="Share earnings" value={shareEarnings} max={Math.max(royalties, shareEarnings, 1)} />
-      </View>
-    </WhiteCard>
-  );
-}
-
-function IncomeBar({ label, value, max }: { label: string; value: number; max: number }) {
-  const width = `${Math.max(6, (value / max) * 100)}%` as DimensionValue;
-  return (
-    <View>
-      <View style={styles.barLabelRow}>
-        <Text style={styles.barLabel}>{label}</Text>
-        <Text style={styles.barValue}>{formatKes(value)}</Text>
-      </View>
-      <View style={styles.barTrack}>
-        <View style={[styles.barFill, { width }]} />
-      </View>
-    </View>
-  );
-}
-
 function sum(values: number[] | null | undefined) {
   return values?.reduce((total, value) => total + value, 0) ?? 0;
 }
@@ -1331,12 +1429,14 @@ const styles = StyleSheet.create({
   energyTotals: { alignItems: "center", backgroundColor: `${colors.orangeDeep}0D`, borderRadius: 22, marginTop: 18, paddingVertical: 18 },
   energyNumber: { color: colors.text, fontSize: 32, fontWeight: "900", letterSpacing: -1 },
   energyCaption: { color: colors.muted, fontSize: 12, fontWeight: "700", marginTop: 3 },
-  incomeBars: { gap: 12, marginTop: 16 },
-  barLabelRow: { flexDirection: "row", justifyContent: "space-between", gap: 12 },
-  barLabel: { color: colors.muted, fontSize: 12, fontWeight: "800" },
-  barValue: { color: colors.text, fontSize: 12, fontWeight: "900" },
-  barTrack: { height: 9, borderRadius: 999, backgroundColor: `${colors.orangeDeep}14`, marginTop: 6, overflow: "hidden" },
-  barFill: { height: 9, borderRadius: 999, backgroundColor: colors.orangeDeep },
+  pledgeRow: {
+    flexDirection: "row",
+    alignItems: "center",
+    borderTopColor: colors.border,
+    borderTopWidth: StyleSheet.hairlineWidth,
+    gap: 12,
+    paddingVertical: 12,
+  },
   profileHero: { alignItems: "center", gap: 8, paddingVertical: 10 },
   avatarLarge: {
     alignItems: "center",
