@@ -1,5 +1,3 @@
-import { HomeownerEmbeddedScreen } from "../../../components/homeowner/HomeownerScreens";
+import { HomeownerRoofDetailScreen } from "../../../components/homeowner/embedded/HomeownerRoofDetail";
 
-export default function HomeownerRoofDetailRoute() {
-  return <HomeownerEmbeddedScreen kind="roof-detail" />;
-}
+export default HomeownerRoofDetailScreen;

@@ -1,5 +1,3 @@
-import { HomeownerEmbeddedScreen } from "../../../components/homeowner/HomeownerScreens";
+import { HomeownerMarketplaceScreen } from "../../../components/homeowner/embedded/HomeownerMarketplace";
 
-export default function HomeownerMarketplaceRoute() {
-  return <HomeownerEmbeddedScreen kind="marketplace" />;
-}
+export default HomeownerMarketplaceScreen;

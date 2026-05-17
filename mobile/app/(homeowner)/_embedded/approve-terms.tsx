@@ -1,5 +1,6 @@
-import { HomeownerEmbeddedScreen } from "../../../components/homeowner/HomeownerScreens";
+import { Redirect } from "expo-router";
 
-export default function HomeownerApproveTermsRoute() {
-  return <HomeownerEmbeddedScreen kind="approve-terms" />;
+/** @deprecated Use terms-detail */
+export default function HomeownerTermsLegacyRoute() {
+  return <Redirect href="/(homeowner)/_embedded/terms-detail" />;
 }

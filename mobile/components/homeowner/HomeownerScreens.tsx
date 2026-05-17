@@ -1,4 +1,4 @@
-import { useCallback, useRef, useState, type ReactNode } from "react";
+import { useState, type ReactNode } from "react";
 import {
   Linking,
   Pressable,
@@ -13,7 +13,7 @@ import {
 } from "react-native";
 import { Redirect, useRouter } from "expo-router";
 import { Ionicons } from "@expo/vector-icons";
-import type { DrsResult, PrepaidCommitment, User, WalletTransaction } from "@emappa/shared";
+import type { DrsResult, PrepaidCommitment, User } from "@emappa/shared";
 import { colors, Label, Pill, PrimaryButton, typography } from "@emappa/ui";
 import { useAuth } from "../AuthContext";
 import { PilotBanner } from "../PilotBanner";
@@ -28,7 +28,6 @@ import {
   OwnershipPositionCard,
   OwnershipRingChart,
   TokenBalanceHero,
-  type DeploymentPhase,
 } from "../shared";
 import {
   canRetraceRoof,
@@ -58,81 +57,22 @@ import { SystemSizingExplainer } from "./SystemSizingExplainer";
 import { SystemEnergyImmersiveHero } from "../energy/SystemImmersiveOverview";
 import { readPilotSession } from "../session";
 import { useApi } from "../../lib/api";
-import { useApiData } from "../../lib/useApiData";
-
-type ApiStage = "listed" | "qualifying" | "funding" | "installing" | "live" | "retired";
-
-interface ApiBuilding {
-  id: string;
-  name: string;
-  address: string;
-  lat?: number;
-  lon?: number;
-  unitCount: number;
-  occupancy: number | null;
-  kind: "apartment" | "single_family";
-  stage: ApiStage;
-  roofAreaM2?: number | null;
-  roofPolygonGeojson?: unknown;
-  roofSource?: "microsoft_footprints" | "owner_traced" | "owner_typed" | null;
-  roofConfidence?: number | null;
-  dataSource?: "synthetic" | "measured" | "mixed";
-  prepaidCommittedKes?: number;
-}
-
-interface RoleHome {
-  role: "homeowner";
-  primary: ApiBuilding | null;
-  projects: ApiBuilding[];
-  activity: string[];
-}
-
-interface EnergyToday {
-  generation_kwh: number[];
-  load_kwh: number[];
-  irradiance_w_m2: number[];
-}
-
-interface PrepaidBalance {
-  confirmedTotalKes: number;
-}
-
-interface WalletBalance {
-  kes: number;
-  breakdown: Record<string, number>;
-}
-
-interface SettlementPeriod {
-  id: string;
-  eGen: number;
-  eSold: number;
-  eWaste: number;
-  revenueKes: number;
-  payouts: Record<string, number>;
-  dataSource: "synthetic" | "measured" | "mixed";
-}
-
-interface OwnershipPosition {
-  percentage?: number;
-  shareFraction?: number;
-  ownerRole?: string;
-  ownerId?: string;
-}
-
-interface HomeownerSnapshot {
-  user: User;
-  building: ApiBuilding | null;
-  balance: PrepaidBalance | null;
-  pledgeHistory: PrepaidCommitment[];
-  energy: EnergyToday | null;
-  drs: DrsResult | null;
-  walletBalance: WalletBalance | null;
-  transactions: WalletTransaction[];
-  ownership: OwnershipPosition[];
-  settlement: SettlementPeriod | null;
-}
-
-type EmbeddedKind = "drs" | "deployment" | "approve-terms" | "compare-today" | "roof-detail" | "marketplace";
+import {
+  deploymentProgress,
+  formatArea,
+  formatKes,
+  formatKwh,
+  formatPercent,
+  formatStage,
+  drsScore,
+  readinessLabel,
+  sumEnergy,
+  useHomeownerSnapshot,
+  type ApiBuilding,
+  type HomeownerSnapshot,
+  type OwnershipPosition,
+  type SettlementPeriod,
+} from "./homeownerSnapshot";
 
 type WalletSegment = "cashflow" | "ownership" | "pledges";
 
@@ -162,8 +102,8 @@ export function HomeownerHomeScreen() {
           const permission = roofPermissionLabel(snapshot.building);
           const nextAction = nextHomeownerAction(snapshot.building, snapshot.drs);
           const kesBalance = snapshot.balance?.confirmedTotalKes ?? 0;
-          const generation = sum(snapshot.energy?.generation_kwh);
-          const load = sum(snapshot.energy?.load_kwh);
+          const generation = sumEnergy(snapshot.energy?.generation_kwh);
+          const load = sumEnergy(snapshot.energy?.load_kwh);
           const solarToday = Math.min(generation, load);
           const coverage = load > 0 ? solarToday / load : 0;
           const deployment = deploymentProgress(snapshot.building.stage);
@@ -206,11 +146,15 @@ export function HomeownerHomeScreen() {
                         percent={deployment.percent}
                       />
                       {blockers.length > 0 ? (
-                        <View style={styles.blockerStack}>
+                        <Pressable
+                          accessibilityRole="button"
+                          onPress={() => router.push("/(homeowner)/_embedded/blocker-detail")}
+                          style={styles.blockerStack}
+                        >
                           {blockers.slice(0, 3).map((reason) => (
                             <BlockerPill key={reason} label={reason} severity="warning" />
                           ))}
-                        </View>
+                        </Pressable>
                       ) : null}
                     </WhiteCard>
                   </View>
@@ -235,17 +179,18 @@ export function HomeownerHomeScreen() {
                 actions={
                   isLive
                     ? [
-                        ["Pledge", "/(homeowner)/wallet"],
+                        ["Pledge", "/(homeowner)/_embedded/pledge-detail"],
+                        ["System health", "/(homeowner)/_embedded/system-health"],
                         ["View energy", "/(homeowner)/energy"],
                         ["Wallet", "/(homeowner)/wallet"],
                         ["Roof detail", "/(homeowner)/_embedded/roof-detail"],
-                        ["Profile", "/(homeowner)/profile"],
                       ]
                     : [
-                        ["View blockers", "/(homeowner)/_embedded/drs"],
-                        ["Approve terms", "/(homeowner)/_embedded/approve-terms"],
-                        ["Compare bill", "/(homeowner)/_embedded/compare-today"],
-                        ["Timeline", "/(homeowner)/_embedded/deployment"],
+                        ["DRS detail", "/(homeowner)/_embedded/drs-detail"],
+                        ["View blockers", "/(homeowner)/_embedded/blocker-detail"],
+                        ["Approve terms", "/(homeowner)/_embedded/terms-detail"],
+                        ["Compare bill", "/(homeowner)/_embedded/compare-bill"],
+                        ["Timeline", "/(homeowner)/_embedded/deployment-detail"],
                         ["Roof detail", "/(homeowner)/_embedded/roof-detail"],
                       ]
                 }
@@ -271,8 +216,8 @@ export function HomeownerEnergyScreen() {
           }
 
           const isLive = snapshot.building.stage === "live";
-          const generation = sum(snapshot.energy?.generation_kwh);
-          const load = sum(snapshot.energy?.load_kwh);
+          const generation = sumEnergy(snapshot.energy?.generation_kwh);
+          const load = sumEnergy(snapshot.energy?.load_kwh);
           const sold = Math.min(generation, load);
           const coverage = load > 0 ? sold / load : 0;
           const genSeries = snapshot.energy?.generation_kwh ?? [];
@@ -403,8 +348,8 @@ export function HomeownerWalletScreen() {
           }
 
           const isLive = snapshot.building.stage === "live";
-          const generation = sum(snapshot.energy?.generation_kwh);
-          const load = sum(snapshot.energy?.load_kwh);
+          const generation = sumEnergy(snapshot.energy?.generation_kwh);
+          const load = sumEnergy(snapshot.energy?.load_kwh);
           const pledgedKes = snapshot.balance?.confirmedTotalKes ?? 0;
           const savingsOffset = homeownerSavingsOffsetKes({
             generationKwh: generation,
@@ -652,46 +597,6 @@ export function HomeownerProfileScreen() {
   );
 }
 
-export function HomeownerEmbeddedScreen({ kind }: { kind: EmbeddedKind }) {
-  const { data, error, isLoading, refetch } = useHomeownerSnapshot();
-  const titleByKind: Record<EmbeddedKind, string> = {
-    drs: "Readiness",
-    deployment: "Deployment",
-    "approve-terms": "Terms",
-    "compare-today": "Compare",
-    "roof-detail": "Roof",
-    marketplace: "Shares",
-  };
-
-  return (
-    <HomeownerShell title={titleByKind[kind]} subtitle="Homeowner roof record.">
-      <SnapshotState data={data} error={error} isLoading={isLoading} refetch={refetch}>
-        {(snapshot) => {
-          if (!snapshot.building) {
-            return <NoBuildingCard />;
-          }
-          if (kind === "drs") {
-            return <DrsDetail snapshot={snapshot} />;
-          }
-          if (kind === "deployment") {
-            return <DeploymentDetail building={snapshot.building} drs={snapshot.drs} />;
-          }
-          if (kind === "approve-terms") {
-            return <TermsDetail snapshot={snapshot} />;
-          }
-          if (kind === "compare-today") {
-            return <CompareTodayDetail snapshot={snapshot} />;
-          }
-          if (kind === "roof-detail") {
-            return <RoofDetail snapshot={snapshot} refetch={refetch} />;
-          }
-          return <MarketplaceDetail snapshot={snapshot} />;
-        }}
-      </SnapshotState>
-    </HomeownerShell>
-  );
-}
-
 export function HomeownerStartProjectScreen() {
   const api = useApi();
   const [name, setName] = useState("");
@@ -744,49 +649,6 @@ export function HomeownerGuard({ children }: { children: ReactNode }) {
     return <Redirect href="/(auth)/role-select" />;
   }
   return children;
-}
-
-function useHomeownerSnapshot() {
-  const api = useApi();
-  const apiRef = useRef(api);
-  apiRef.current = api;
-  const load = useCallback(() => loadHomeownerSnapshot(apiRef.current), []);
-  return useApiData(load, []);
-}
-
-async function loadHomeownerSnapshot(api: ReturnType<typeof useApi>): Promise<HomeownerSnapshot> {
-  const [user, homeResult] = await Promise.all([api.me(), api.roleHome("homeowner")]);
-  const home = homeResult as unknown as RoleHome;
-  const building =
-    home.primary ?? (user.buildingId ? ((await api.getProject(user.buildingId)) as unknown as ApiBuilding) : null);
-
-  if (!building) {
-    return {
-      user,
-      building: null,
-      balance: null,
-      pledgeHistory: [],
-      energy: null,
-      drs: null,
-      walletBalance: null,
-      transactions: [],
-      ownership: [],
-      settlement: null,
-    };
-  }
-
-  const [balance, pledgeHistory, energy, drs, walletBalance, transactions, ownership, settlement] = await Promise.all([
-    api.getPrepaidBalance(building.id),
-    api.getPrepaidHistory(building.id),
-    api.getEnergyToday(building.id),
-    api.getDrsAssessment(building.id) as Promise<DrsResult>,
-    api.getWalletBalance(user.id),
-    api.getWalletTransactions(user.id),
-    api.getOwnership(building.id, "homeowner") as Promise<OwnershipPosition[]>,
-    api.getLatestSettlement(building.id) as Promise<SettlementPeriod | null>,
-  ]);
-
-  return { user, building, balance, pledgeHistory, energy, drs, walletBalance, transactions, ownership, settlement };
 }
 
 function SnapshotState({
@@ -1022,129 +884,6 @@ function WalletPledgesPanel({
   );
 }
 
-function DrsDetail({ snapshot }: { snapshot: HomeownerSnapshot }) {
-  if (!snapshot.drs) {
-    return <EmptyCard icon="shield-checkmark-outline" title="No readiness yet" body="No DRS result was returned." />;
-  }
-
-  return (
-    <WhiteCard>
-      <IconBadge name="shield-checkmark-outline" />
-      <Text style={styles.cardTitle}>{readinessLabel(snapshot.drs)}</Text>
-      <Text style={styles.bodyText}>Readiness gates funding, scheduling, and go-live.</Text>
-      {snapshot.drs.reasons.length === 0 ? (
-        <Row label="Blockers" value="None" note="No DRS blocker was returned." />
-      ) : (
-        snapshot.drs.reasons.map((reason) => <Row key={reason} label={reason} value="Review" note="Resolve before go-live." />)
-      )}
-    </WhiteCard>
-  );
-}
-
-function DeploymentDetail({ building, drs }: { building: ApiBuilding; drs: DrsResult | null }) {
-  const stages: ApiStage[] = ["listed", "qualifying", "funding", "installing", "live"];
-  const current = Math.max(0, stages.indexOf(building.stage));
-  const progress = `${Math.max(8, ((current + 1) / stages.length) * 100)}%` as DimensionValue;
-
-  return (
-    <WhiteCard>
-      <Label>Deployment timeline</Label>
-      <Text style={styles.cardTitle}>{formatStage(building.stage)}</Text>
-      <View style={styles.progressTrack}>
-        <View style={[styles.progressFill, { width: progress }]} />
-      </View>
-      {stages.map((stage, index) => (
-        <Row
-          key={stage}
-          label={formatStage(stage)}
-          value={index <= current ? "Reached" : "Pending"}
-          note={stage === "live" ? "Go-live only follows readiness approval." : `DRS: ${readinessLabel(drs)}`}
-        />
-      ))}
-    </WhiteCard>
-  );
-}
-
-function TermsDetail({ snapshot }: { snapshot: HomeownerSnapshot }) {
-  return (
-    <WhiteCard>
-      <Label>Terms</Label>
-      <Text style={styles.cardTitle}>Roof permission rules</Text>
-      <InfoRows
-        rows={[
-          ["Roof control", "You grant access; provider owns the array."],
-          ["Readiness", "Funding and go-live stay gated."],
-          ["Income", "Payout follows monetized energy only."],
-          ["Current stage", formatStage(snapshot.building!.stage)],
-        ]}
-      />
-    </WhiteCard>
-  );
-}
-
-function CompareTodayDetail({ snapshot }: { snapshot: HomeownerSnapshot }) {
-  const generation = sum(snapshot.energy?.generation_kwh);
-  const load = sum(snapshot.energy?.load_kwh);
-  const sold = Math.min(generation, load);
-
-  return (
-    <>
-      <EnergyFlowCard generation={generation} load={load} source={snapshot.building?.dataSource ?? "unreported"} />
-      <MetricGrid
-        metrics={[
-          { label: "Produced", value: formatKwh(generation), detail: "Provider system" },
-          { label: "Matched", value: formatKwh(sold), detail: "Served home load" },
-          { label: "Income", value: formatKes(snapshot.settlement?.payouts["homeowner"] ?? 0), detail: "Latest settlement" },
-        ]}
-      />
-    </>
-  );
-}
-
-function RoofDetail({ snapshot, refetch }: { snapshot: HomeownerSnapshot; refetch: () => void }) {
-  const api = useApi();
-  const [area, setArea] = useState(snapshot.building?.roofAreaM2 ? String(snapshot.building.roofAreaM2) : "");
-  const [status, setStatus] = useState<string | null>(null);
-
-  async function saveRoof() {
-    const areaM2 = Number(area);
-    if (!Number.isFinite(areaM2) || areaM2 <= 0) {
-      setStatus("Enter a positive roof area before saving.");
-      return;
-    }
-    setStatus("Saving roof evidence...");
-    await api.setRoof(snapshot.building!.id, { areaM2, source: "owner_typed" });
-    setStatus("Roof evidence saved. Refreshing...");
-    refetch();
-  }
-
-  return (
-    <WhiteCard>
-      <Label>Roof detail</Label>
-      <MiniRoofGraphic area={snapshot.building!.roofAreaM2} />
-      <TextInput value={area} onChangeText={setArea} keyboardType="decimal-pad" placeholder="Usable roof area m2" placeholderTextColor={colors.dim} style={styles.input} />
-      {status ? <Text style={styles.bodyText}>{status}</Text> : null}
-      <PrimaryButton onPress={saveRoof}>Save roof area</PrimaryButton>
-    </WhiteCard>
-  );
-}
-
-function MarketplaceDetail({ snapshot }: { snapshot: HomeownerSnapshot }) {
-  const ownedShare = ownershipPercent(snapshot.ownership);
-  return (
-    <WhiteCard>
-      <Label>Cashflow shares</Label>
-      <Text style={styles.cardTitle}>{formatPercent(Math.max(0, 1 - ownedShare))} outside homeowner record</Text>
-      <Text style={styles.bodyText}>
-        This is a payout record, not solar array ownership. Transfers need backend support.
-      </Text>
-      <PrimaryButton onPress={() => Linking.openURL("mailto:support@emappa.test?subject=Homeowner%20share%20buyback")}>
-        Contact support
-      </PrimaryButton>
-    </WhiteCard>
-  );
-}
-
 function InfoRows({ rows }: { rows: Array<[string, string]> }) {
   return (
     <View style={{ marginTop: 12 }}>
@@ -1308,47 +1047,6 @@ function FlowNode({ icon, label }: { icon: keyof typeof Ionicons.glyphMap; label
   );
 }
 
-function sum(values: number[] | null | undefined) {
-  return values?.reduce((total, value) => total + value, 0) ?? 0;
-}
-
-function formatKes(value: number) {
-  return `KSh ${Math.round(value).toLocaleString()}`;
-}
-
-function formatKwh(value: number) {
-  return `${Number(value.toFixed(1)).toLocaleString()} kWh`;
-}
-
-function formatPercent(value: number) {
-  return `${Math.round(Math.max(0, Math.min(1, value)) * 100)}%`;
-}
-
-function formatArea(value?: number | null) {
-  return value ? `${Math.round(value).toLocaleString()} m2` : "Not captured";
-}
-
-function deploymentProgress(stage: ApiStage) {
-  const stages: ApiStage[] = ["listed", "qualifying", "funding", "installing", "live"];
-  const current = Math.max(0, stages.indexOf(stage));
-  const percent = Math.round(((current + 1) / stages.length) * 100);
-  const phaseLabels = ["Qualifying", "Funding", "Installing", "Live"] as const;
-  const phases: DeploymentPhase[] = phaseLabels.map((label, index) => {
-    const phaseIndex = index + 1;
-    return {
-      key: label.toLowerCase(),
-      label,
-      complete: current > phaseIndex,
-      current: current === phaseIndex,
-    };
-  });
-  return { percent, phases };
-}
-
-function formatStage(stage: string) {
-  return stage.replace(/_/g, " ").replace(/\b\w/g, (letter) => letter.toUpperCase());
-}
-
 function formatDate(value: string | null) {
   return value ? new Date(value).toLocaleDateString() : "Date unavailable";
 }
@@ -1371,17 +1069,6 @@ function nextHomeownerAction(building: ApiBuilding, drs: DrsResult | null) {
     return { label: "Approve access", detail: "Wait for go-live gates" };
   }
   return { label: "Monitor", detail: "Roof flow is live" };
-}
-
-function readinessLabel(drs: DrsResult | null) {
-  if (!drs) {
-    return "DRS unavailable";
-  }
-  return `${drs.decision} · ${drsScore(drs)}/100`;
-}
-
-function drsScore(drs: DrsResult) {
-  return drs.score <= 1 ? Math.round(drs.score * 100) : Math.round(drs.score);
 }
 
 function ownershipPercent(positions: OwnershipPosition[]) {

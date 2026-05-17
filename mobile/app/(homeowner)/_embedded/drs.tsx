@@ -1,5 +1,6 @@
-import { HomeownerEmbeddedScreen } from "../../../components/homeowner/HomeownerScreens";
+import { Redirect } from "expo-router";
 
-export default function HomeownerDrsRoute() {
-  return <HomeownerEmbeddedScreen kind="drs" />;
+/** @deprecated Use drs-detail */
+export default function HomeownerDrsLegacyRoute() {
+  return <Redirect href="/(homeowner)/_embedded/drs-detail" />;
 }

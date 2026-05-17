@@ -1,5 +1,6 @@
-import { HomeownerEmbeddedScreen } from "../../../components/homeowner/HomeownerScreens";
+import { Redirect } from "expo-router";
 
-export default function HomeownerCompareTodayRoute() {
-  return <HomeownerEmbeddedScreen kind="compare-today" />;
+/** @deprecated Use compare-bill */
+export default function HomeownerCompareTodayLegacyRoute() {
+  return <Redirect href="/(homeowner)/_embedded/compare-bill" />;
 }
