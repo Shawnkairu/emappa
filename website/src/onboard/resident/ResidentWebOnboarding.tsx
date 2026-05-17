@@ -4,33 +4,65 @@ import {
   completeOnboarding,
   joinBuildingWithCode,
 } from "../../lib/api";
+import { ResidentStep1FindBuilding, type ResidentFindBuildingDraft } from "./step1";
+import { ResidentStep2ConfirmBuilding, type ResidentBuildingMatch } from "./step2";
+import { ResidentStep3LoadProfile, type ResidentLoadProfileDraft } from "./step3";
+import { ResidentStep4CapacityCheck } from "./step4";
+import { ResidentStep5PledgeDecision } from "./step5";
 
-const steps = ["Join", "Confirm", "Optional pledge"];
+const steps = ["Find building", "Confirm", "Load profile", "Capacity", "Pledge decision"];
 
 export function ResidentWebOnboarding({ onFinished }: { onFinished: () => void | Promise<void> }) {
   const [step, setStep] = useState(0);
-  const [code, setCode] = useState("");
-  const [buildingId, setBuildingId] = useState<string | null>(null);
-  const [buildingLabel, setBuildingLabel] = useState("");
-  const [address, setAddress] = useState("");
+  const [findDraft, setFindDraft] = useState<ResidentFindBuildingDraft>({ code: "", unitNumber: "", manualAddress: "" });
+  const [building, setBuilding] = useState<ResidentBuildingMatch | null>(null);
+  const [unitCount, setUnitCount] = useState(1);
+  const [loadProfile, setLoadProfile] = useState<ResidentLoadProfileDraft>({
+    monthlySpendKes: "",
+    applianceProfile: [],
+    daytimePattern: "balanced",
+    receiptName: "",
+  });
   const [amount, setAmount] = useState("");
   const [busy, setBusy] = useState(false);
   const [message, setMessage] = useState<string | null>(null);
 
   async function submitJoin(event: FormEvent) {
     event.preventDefault();
-    const trimmed = code.trim();
-    if (trimmed.length < 4) {
-      setMessage("Enter the invite code from your building owner.");
+    const trimmed = findDraft.code.trim();
+    const manualAddress = findDraft.manualAddress.trim();
+    const unitNumber = findDraft.unitNumber.trim();
+    if (!unitNumber) {
+      setMessage("Enter your apartment or unit number.");
+      return;
+    }
+    if (trimmed.length < 4 && manualAddress.length < 6) {
+      setMessage("Enter an invite code or a manual building address.");
       return;
     }
     setBusy(true);
     setMessage(null);
     try {
-      const result = await joinBuildingWithCode(trimmed);
-      setBuildingId(result.building.id);
-      setBuildingLabel(result.building.name);
-      setAddress(result.building.address);
+      if (trimmed.length >= 4) {
+        const result = await joinBuildingWithCode(trimmed);
+        setBuilding({
+          id: result.building.id,
+          name: result.building.name,
+          address: result.building.address,
+          unitNumber,
+          source: "invite",
+        });
+        setUnitCount(result.building.unitCount);
+      } else {
+        setBuilding({
+          id: "manual-resident-building",
+          name: manualAddress.split(",")[0] ?? "Manual building",
+          address: manualAddress,
+          unitNumber,
+          source: "manual",
+        });
+        setUnitCount(12);
+      }
       setStep(1);
     } catch (cause) {
       setMessage(cause instanceof Error ? cause.message : "Could not join that building.");
@@ -40,7 +72,7 @@ export function ResidentWebOnboarding({ onFinished }: { onFinished: () => void |
   }
 
   async function finish(skipPledge: boolean) {
-    if (!buildingId) {
+    if (!building) {
       setMessage("Missing building context.");
       return;
     }
@@ -54,9 +86,24 @@ export function ResidentWebOnboarding({ onFinished }: { onFinished: () => void |
           setBusy(false);
           return;
         }
-        await commitPrepaidWeb(buildingId, kes);
+        if (building.source === "invite") {
+          await commitPrepaidWeb(building.id, kes);
+        }
       }
-      await completeOnboarding({});
+      await completeOnboarding({
+        profile: {
+          unitNumber: building.unitNumber,
+          buildingAddress: building.address,
+          buildingSource: building.source,
+          loadProfile: {
+            level: "L1",
+            monthlySpendKes: Number(loadProfile.monthlySpendKes) || null,
+            applianceProfile: loadProfile.applianceProfile,
+            daytimePattern: loadProfile.daytimePattern,
+            receiptName: loadProfile.receiptName || null,
+          },
+        },
+      });
       await onFinished();
     } catch (cause) {
       setMessage(cause instanceof Error ? cause.message : "Could not finish onboarding.");
@@ -79,63 +126,40 @@ export function ResidentWebOnboarding({ onFinished }: { onFinished: () => void |
         </div>
 
         {step === 0 ? (
-          <form className="onboard-pane" onSubmit={submitJoin}>
-            <label htmlFor="resident-code">
-              Building invite code
-              <input
-                id="resident-code"
-                value={code}
-                onChange={(event) => setCode(event.target.value)}
-                placeholder="From owner or QR"
-                autoComplete="off"
-                required
-              />
-            </label>
-            <div className="onboard-actions">
-              <button type="submit" disabled={busy}>{busy ? "Checking…" : "Continue"}</button>
-            </div>
-          </form>
+          <ResidentStep1FindBuilding draft={findDraft} busy={busy} onChange={setFindDraft} onSubmit={submitJoin} />
         ) : null}
 
-        {step === 1 ? (
-          <div className="onboard-pane">
-            <div className="terms-preview">
-              <p className="roof-map-placeholder" style={{ minHeight: "auto", padding: 16 }}>
-                <strong>{buildingLabel}</strong>
-                <small>{address}</small>
-              </p>
-              <p>Confirm this is the building where your unit participates.</p>
-            </div>
-            <div className="onboard-actions">
-              <button className="ghost-action" type="button" onClick={() => setStep(0)}>Back</button>
-              <button type="button" onClick={() => setStep(2)}>This is my building</button>
-            </div>
-          </div>
+        {step === 1 && building ? (
+          <ResidentStep2ConfirmBuilding building={building} onBack={() => setStep(0)} onConfirm={() => setStep(2)} />
         ) : null}
 
         {step === 2 ? (
-          <div className="onboard-pane">
-            <div className="pledge-preview">
-              <span>Optional</span>
-              <strong>Prepaid pledge</strong>
-              <small>Pilot pledges are non-binding until cash rails are live.</small>
-            </div>
-            <label htmlFor="pledge-kes">
-              Amount (KES)
-              <input
-                id="pledge-kes"
-                inputMode="numeric"
-                value={amount}
-                onChange={(event) => setAmount(event.target.value)}
-                placeholder="1000"
-              />
-            </label>
-            <div className="onboard-actions">
-              <button className="ghost-action" type="button" onClick={() => setStep(1)}>Back</button>
-              <button type="button" disabled={busy} onClick={() => finish(false)}>{busy ? "Saving…" : "Pledge and finish"}</button>
-              <button type="button" disabled={busy} onClick={() => finish(true)}>Skip for now</button>
-            </div>
-          </div>
+          <ResidentStep3LoadProfile
+            draft={loadProfile}
+            onBack={() => setStep(1)}
+            onChange={setLoadProfile}
+            onContinue={() => setStep(3)}
+          />
+        ) : null}
+
+        {step === 3 ? (
+          <ResidentStep4CapacityCheck
+            loadProfile={loadProfile}
+            unitCount={unitCount}
+            onBack={() => setStep(2)}
+            onContinue={() => setStep(4)}
+          />
+        ) : null}
+
+        {step === 4 ? (
+          <ResidentStep5PledgeDecision
+            amount={amount}
+            activated={false}
+            busy={busy}
+            onAmountChange={setAmount}
+            onBack={() => setStep(3)}
+            onFinish={finish}
+          />
         ) : null}
 
         {message ? <p className="form-note onboard-message" role="status">{message}</p> : null}
