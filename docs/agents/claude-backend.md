@@ -499,6 +499,9 @@ truth; the ledger is the human-readable index.
 - 2026-05-17 — Coordinator: tag phase-P1-backend-done-2026-05-17 on agent/backend
 - 2026-05-17 — P1.6.7 post-review hardening: /pledges writes wallet_transaction row (parity with legacy /prepaid/commit) + AUDIT_REQUIRED_PATHS populated for /pledges, /pledges/{id}/cancel, /tokens/purchase, /residents/{id}/load-profile, /residents/{id}/queue-request (belt + suspenders against pydantic-drift) — merged ecac8b1 into agent/backend
 
+### P2 (Homeowner backend — in progress)
+- 2026-05-17 — P2.6.6 homeowner_authority table + ORM + repo (Scenario C §6 step 5, A.7 case 1 gate); migration 0009 (round-trip clean); 20 new tests; reordered ahead of P2.6.1 because the endpoint hard-depends on this schema — merged aaee87b into agent/backend
+
 ### Active deferrals (queued backend tasks — do these before P2 closes)
 - *(none — P1.6.7 cleared 2026-05-17)*
 
@@ -518,12 +521,12 @@ other two agents. Each note is also mirrored in the target agent's
   ATS state. Use the same `?apartment_label=` query param convention.
 
 ### Next on your queue (per BUILD_PLAN)
-- **P2.6.1** — `POST /homeowner/{id}/authority-docs`
+- **P2.6.1** — `POST /homeowner/{id}/authority-docs` (now unblocked — table landed in P2.6.6)
 - **P2.6.2** — `POST /homeowner/{id}/utility-context`
 - **P2.6.3** — `POST /homeowner/{id}/site-preview`
-- **P2.6.4** — `POST /homeowner/{id}/initiate-project`
+- **P2.6.4** — `POST /homeowner/{id}/initiate-project` (gates on `ha_repo.has_verified`)
 - **P2.6.5** — `GET /homeowner/{id}/lbrs`
-- **P2.6.6** — `homeowner_authority` table migration + model
+- ~~**P2.6.6** — `homeowner_authority` table migration + model~~ ✅ landed (aaee87b)
 
 ---
 
