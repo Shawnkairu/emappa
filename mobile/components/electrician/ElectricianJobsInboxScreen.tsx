@@ -8,7 +8,7 @@ import {
   Label,
   Pill,
   StatusDot,
-} from "../electrician/ElectricianShared";
+} from "./ElectricianShared";
 
 const JOBS = [
   { name: "Riverside Apartments", stage: "Install", next: "Signoff", pill: "site", tone: "good" as const, ready: true },

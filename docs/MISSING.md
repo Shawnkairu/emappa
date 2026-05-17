@@ -12,12 +12,12 @@
 - Total artifacts checked: 312
 - MISSING: **205** (was 207 — 2 rows reclassified to EXISTS post-rename adoption: DRSProgressCard + TokenBalanceHero now exist at canonical paths)
 - PARTIAL: 73
-- STALE: **14** (was 18 — 4 resolved 2026-05-16 in P0 mechanical renames)
+- STALE: **13** (was 18 — 5 resolved in P0.1 mechanical renames through P0.1.7)
 - EXISTS: **20** (was 14 — 4 from renames + 2 reclassified)
 
 > **Granularity note.** MISSING.md currently aggregates ~227 IA_SPEC named artifacts into ~38 grouped rows for operational readability. BUILD_PLAN.md cuts the same backlog into ~390 task IDs (P0.0.1 ... P9.1.24) for assignment. The two are consistent but not 1:1; treat BUILD_PLAN task IDs as the unit of work assignment, and MISSING.md as the rollup tally for burndown reporting.
 
-> **2026-05-16 update.** Four STALE rows landed as part of [BUILD_PLAN.md §P0.1](BUILD_PLAN.md#p01-structural-cleanup-stale-rows-from-missingmd-naming-structural-drift): `DrsCard → mobile/components/shared/DRSProgressCard.tsx` (P0.1.8), `TokenHero → mobile/components/shared/TokenBalanceHero.tsx` (P0.1.9, also renamed in `website/src/portal/PortalWidgets.tsx`), `(auth)/verify-phone.tsx → verify-otp.tsx` (P0.1.10, with 3 importers updated + RoleTabs admin hidden-tab cleanup), `(admin)/home.tsx` deleted (P0.1.4). **`installer/ → electrician/`** done **2026-05-17** (P0.1.5). **`owner/ → building-owner/`** done **2026-05-17** (P0.1.6): consolidated under `mobile/components/building-owner/`; embedded routes use API-backed screens in `BuildingOwnerScreens.tsx`; deleted duplicate `owner/` + `proposed-flow/Owner*` scaffolds. P3 spec components (HostRoyaltyCard, etc.) remain separate MISSING rows.
+> **2026-05-16 update.** Four STALE rows landed as part of [BUILD_PLAN.md §P0.1](BUILD_PLAN.md#p01-structural-cleanup-stale-rows-from-missingmd-naming-structural-drift): `DrsCard → mobile/components/shared/DRSProgressCard.tsx` (P0.1.8), `TokenHero → mobile/components/shared/TokenBalanceHero.tsx` (P0.1.9, also renamed in `website/src/portal/PortalWidgets.tsx`), `(auth)/verify-phone.tsx → verify-otp.tsx` (P0.1.10, with 3 importers updated + RoleTabs admin hidden-tab cleanup), `(admin)/home.tsx` deleted (P0.1.4). **`installer/ → electrician/`** done **2026-05-17** (P0.1.5). **`owner/ → building-owner/`** done **2026-05-17** (P0.1.6). **`proposed-flow/`** dissolved **2026-05-17** (P0.1.7): active screens live under `electrician/`, `provider/`, and `shared/ProposedPageChrome.tsx`. P3 spec components (HostRoyaltyCard, etc.) remain separate MISSING rows.
 
 ---
 
@@ -599,7 +599,7 @@ Most already enumerated above. Remaining cross-role universals:
 | ~~`(admin)/home.tsx` (4th tab)~~ | only 3 tabs (Alerts/Projects/Profile) | Remove | **DONE 2026-05-16** (P0.1.4) |
 | ~~`mobile/components/installer/*` (whole folder)~~ | role is "Electrician" not "Installer" per §Role Naming | Rename folder + components | **DONE 2026-05-17** (P0.1.5) → `mobile/components/electrician/`; `Installer*` → `Electrician*`; deleted unused checklist/job-detail/maintenance scaffolds (P5 replacements) |
 | ~~`mobile/components/owner/*` (whole folder)~~ | role is "Building Owner" | Rename folder + components | **DONE 2026-05-17** (P0.1.6) → `mobile/components/building-owner/`; `Owner*` → `BuildingOwner*`; deleted duplicate home/earnings/list-building + `proposed-flow/Owner*` scaffolds |
-| `mobile/components/proposed-flow/*` | sandbox; not in spec | Either promote/delete | Pending (P0.1.7) |
+| ~~`mobile/components/proposed-flow/*` (whole folder)~~ | sandbox; not in spec | Promote into role/shared folders or delete | **DONE 2026-05-17** (P0.1.7) — promoted 5 screens + `ProposedPageChrome`; deleted obsolete financier tranche + resident scaffolds; folder removed |
 | ~~`mobile/components/DrsCard.tsx`~~ | spec name `DRSProgressCard` | Rename | **DONE 2026-05-16** → `mobile/components/shared/DRSProgressCard.tsx` (P0.1.8) |
 | ~~`mobile/components/TokenHero.tsx`~~ | spec name `TokenBalanceHero` | Rename or alias | **DONE 2026-05-16** → `mobile/components/shared/TokenBalanceHero.tsx` + `website/src/portal/PortalWidgets.tsx` web mirror also renamed (P0.1.9) |
 | ~~`(auth)/verify-phone.tsx`~~ | spec uses email OTP for pilot | Rename to `verify-otp.tsx` | **DONE 2026-05-16** (P0.1.10) |

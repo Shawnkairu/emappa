@@ -6,7 +6,7 @@ import { getRoleHome } from "@emappa/api-client";
 import type { ProjectedBuilding } from "@emappa/shared";
 import { BuildingPulse, KillSwitchBanner } from "../design-handoff";
 import { ResidentRuleCard } from "../resident/ResidentShared";
-import { ProposedPageChrome } from "./ProposedPageChrome";
+import { ProposedPageChrome } from "../shared/ProposedPageChrome";
 
 export function ProviderCommitCapacityScreen() {
   const [building, setBuilding] = useState<ProjectedBuilding | null>(null);

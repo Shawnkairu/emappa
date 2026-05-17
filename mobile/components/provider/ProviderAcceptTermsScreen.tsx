@@ -5,7 +5,7 @@ import { useEffect, useState } from "react";
 import { getRoleHome } from "@emappa/api-client";
 import type { ProjectedBuilding } from "@emappa/shared";
 import { ResidentRuleCard } from "../resident/ResidentShared";
-import { ProposedPageChrome } from "./ProposedPageChrome";
+import { ProposedPageChrome } from "../shared/ProposedPageChrome";
 
 export function ProviderAcceptTermsScreen() {
   const [building, setBuilding] = useState<ProjectedBuilding | null>(null);

@@ -2,7 +2,7 @@ import { useState } from "react";
 import { Pressable, Text, View } from "react-native";
 import { colors, typography } from "@emappa/ui";
 import { ElectricianHomeScreen } from "./ElectricianHomeScreen";
-import { ElectricianJobsInboxScreen } from "../proposed-flow/ElectricianJobsInboxScreen";
+import { ElectricianJobsInboxScreen } from "./ElectricianJobsInboxScreen";
 
 type ProjectsSegment = "today" | "queue";
 

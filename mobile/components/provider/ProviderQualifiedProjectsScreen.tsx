@@ -5,7 +5,7 @@ import { getRoleHome } from "@emappa/api-client";
 import type { ProjectedBuilding } from "@emappa/shared";
 import { BuildingPulse, KillSwitchBanner, SettlementWaterfall } from "../design-handoff";
 import { ResidentRuleCard } from "../resident/ResidentShared";
-import { ProposedPageChrome } from "./ProposedPageChrome";
+import { ProposedPageChrome } from "../shared/ProposedPageChrome";
 
 const MOCK_PROJECTS = [
   { name: "Riverside Apartments", units: 38, score: 78, capacity: "64 kW", residents: "84%", tone: "good" as const },
