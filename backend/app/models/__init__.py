@@ -5,6 +5,8 @@ module ensures every model is registered with the metadata.
 """
 from ..db.session import Base
 from .admin import AdminAllowlist
+from .agent_action import AgentAction
+from .agent_eval import AgentEvalRun
 from .alert import Alert
 from .ats import ApartmentAtsState
 from .audit import AuditLog
@@ -27,6 +29,8 @@ from .waitlist import WaitlistLead
 __all__ = [
     "Base",
     "AdminAllowlist",
+    "AgentAction",
+    "AgentEvalRun",
     "Alert",
     "ApartmentAtsState",
     "AuditLog",
