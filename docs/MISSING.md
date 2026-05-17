@@ -17,7 +17,7 @@
 
 > **Granularity note.** MISSING.md currently aggregates ~227 IA_SPEC named artifacts into ~38 grouped rows for operational readability. BUILD_PLAN.md cuts the same backlog into ~390 task IDs (P0.0.1 ... P9.1.24) for assignment. The two are consistent but not 1:1; treat BUILD_PLAN task IDs as the unit of work assignment, and MISSING.md as the rollup tally for burndown reporting.
 
-> **2026-05-16 update.** Four STALE rows landed as part of [BUILD_PLAN.md §P0.1](BUILD_PLAN.md#p01-structural-cleanup-stale-rows-from-missingmd-naming-structural-drift): `DrsCard → mobile/components/shared/DRSProgressCard.tsx` (P0.1.8), `TokenHero → mobile/components/shared/TokenBalanceHero.tsx` (P0.1.9, also renamed in `website/src/portal/PortalWidgets.tsx`), `(auth)/verify-phone.tsx → verify-otp.tsx` (P0.1.10, with 3 importers updated + RoleTabs admin hidden-tab cleanup), `(admin)/home.tsx` deleted (P0.1.4). Folder renames `installer/ → electrician/` and `owner/ → building-owner/` are deferred to P0.1.5/P0.1.6 because the folder contents are scaffolding being replaced by spec-compliant components in P5/P3 (TaskBoard, HostRoyaltyCard, etc.) — renaming them now wastes effort that gets deleted later.
+> **2026-05-16 update.** Four STALE rows landed as part of [BUILD_PLAN.md §P0.1](BUILD_PLAN.md#p01-structural-cleanup-stale-rows-from-missingmd-naming-structural-drift): `DrsCard → mobile/components/shared/DRSProgressCard.tsx` (P0.1.8), `TokenHero → mobile/components/shared/TokenBalanceHero.tsx` (P0.1.9, also renamed in `website/src/portal/PortalWidgets.tsx`), `(auth)/verify-phone.tsx → verify-otp.tsx` (P0.1.10, with 3 importers updated + RoleTabs admin hidden-tab cleanup), `(admin)/home.tsx` deleted (P0.1.4). **`owner/ → building-owner/`** done **2026-05-17** (P0.1.6): consolidated under `mobile/components/building-owner/`; embedded routes use API-backed screens in `BuildingOwnerScreens.tsx`; deleted duplicate `owner/` + `proposed-flow/Owner*` scaffolds. P3 spec components (HostRoyaltyCard, etc.) remain separate MISSING rows.
 
 ---
 
@@ -598,7 +598,7 @@ Most already enumerated above. Remaining cross-role universals:
 | `(financier)/tranche-release.tsx` (tab/route) | embedded inside portfolio detail | Move into Project Status detail | Pending (P0.1.3) |
 | ~~`(admin)/home.tsx` (4th tab)~~ | only 3 tabs (Alerts/Projects/Profile) | Remove | **DONE 2026-05-16** (P0.1.4) |
 | `mobile/components/installer/*` (whole folder) | role is "Electrician" not "Installer" per §Role Naming | Rename folder + components | Pending (P0.1.5) — folder will be replaced by P5 components |
-| `mobile/components/owner/*` | role is "Building Owner" | Rename for clarity | Pending (P0.1.6) — folder will be replaced by P3 components |
+| ~~`mobile/components/owner/*` (whole folder)~~ | role is "Building Owner" | Rename folder + components | **DONE 2026-05-17** (P0.1.6) → `mobile/components/building-owner/`; `Owner*` → `BuildingOwner*`; deleted duplicate home/earnings/list-building + `proposed-flow/Owner*` scaffolds |
 | `mobile/components/proposed-flow/*` | sandbox; not in spec | Either promote/delete | Pending (P0.1.7) |
 | ~~`mobile/components/DrsCard.tsx`~~ | spec name `DRSProgressCard` | Rename | **DONE 2026-05-16** → `mobile/components/shared/DRSProgressCard.tsx` (P0.1.8) |
 | ~~`mobile/components/TokenHero.tsx`~~ | spec name `TokenBalanceHero` | Rename or alias | **DONE 2026-05-16** → `mobile/components/shared/TokenBalanceHero.tsx` + `website/src/portal/PortalWidgets.tsx` web mirror also renamed (P0.1.9) |

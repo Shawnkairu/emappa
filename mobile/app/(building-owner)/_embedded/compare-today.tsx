@@ -1,3 +1,3 @@
-import { OwnerCompareTodayScreen } from "../../../components/owner/OwnerCompareTodayScreen";
+import { BuildingOwnerCompareTodayScreen } from "../../../components/building-owner/BuildingOwnerScreens";
 
-export default OwnerCompareTodayScreen;
+export default BuildingOwnerCompareTodayScreen;

@@ -18,17 +18,17 @@ import {
 } from "@emappa/ui";
 import { BuildingPulse, KillSwitchBanner, ProposedFlowRibbon } from "../design-handoff";
 
-export type OwnerTone = "good" | "warn" | "bad" | "neutral";
+export type BuildingOwnerTone = "good" | "warn" | "bad" | "neutral";
 
-export interface OwnerHero {
+export interface BuildingOwnerHero {
   label: string;
   value: string;
   sub: string;
-  tone?: OwnerTone;
+  tone?: BuildingOwnerTone;
   status?: string;
 }
 
-export function OwnerScreenShell({
+export function BuildingOwnerScreenShell({
   section,
   title,
   subtitle,
@@ -41,7 +41,7 @@ export function OwnerScreenShell({
   title: string;
   subtitle: string;
   actions: string[];
-  hero: (building: ProjectedBuilding) => OwnerHero;
+  hero: (building: ProjectedBuilding) => BuildingOwnerHero;
   children: (building: ProjectedBuilding) => ReactNode;
   /** Design-handoff proposed-flow ribbon (amber wireframe banner). */
   showHandoffRibbon?: boolean;
@@ -147,19 +147,19 @@ export function OwnerScreenShell({
           {subtitle}
         </Text>
 
-        <OwnerActionRail actions={actions} />
-        <OwnerHeroCard hero={heroMetric} />
+        <BuildingOwnerActionRail actions={actions} />
+        <BuildingOwnerHeroCard hero={heroMetric} />
         <BuildingPulse role="building_owner" building={building} />
         <KillSwitchBanner building={building} />
         {children(building)}
-        <OwnerActivityCard activity={activity} />
+        <BuildingOwnerActivityCard activity={activity} />
       </ScrollView>
     </Surface>
   );
 }
 
 /** Section opener inside a GlassCard (matches resident scaffold card typography). */
-export function OwnerIntroCard({
+export function BuildingOwnerIntroCard({
   eyebrow,
   title,
   detail,
@@ -194,7 +194,7 @@ export function OwnerIntroCard({
 }
 
 /** Profile/header card aligned with resident `ResidentProfileScreen` trust card pattern. */
-export function OwnerProfileCard({ building }: { building: ProjectedBuilding }) {
+export function BuildingOwnerProfileCard({ building }: { building: ProjectedBuilding }) {
   const view = building.roleViews.owner;
   const letter = (building.project.name.trim().slice(0, 1) || "?").toUpperCase();
   const sessionReady = building.drs.decision === "deployment_ready";
@@ -213,9 +213,9 @@ export function OwnerProfileCard({ building }: { building: ProjectedBuilding }) 
           </View>
         </View>
         <View style={profileStyles.profileStats}>
-          <OwnerProfileStat value={String(building.project.units)} label="Units" />
-          <OwnerProfileStat value={stageLabel(building.project.stage)} label="Stage" />
-          <OwnerProfileStat value={sessionReady ? "Clear" : "Review"} label="DRS" />
+          <BuildingOwnerProfileStat value={String(building.project.units)} label="Units" />
+          <BuildingOwnerProfileStat value={stageLabel(building.project.stage)} label="Stage" />
+          <BuildingOwnerProfileStat value={sessionReady ? "Clear" : "Review"} label="DRS" />
         </View>
       </View>
       <Text style={profileStyles.name}>{building.project.name}</Text>
@@ -233,10 +233,10 @@ export function OwnerProfileCard({ building }: { building: ProjectedBuilding }) 
   );
 }
 
-export function OwnerMetricGrid({
+export function BuildingOwnerMetricGrid({
   metrics,
 }: {
-  metrics: Array<{ label: string; value: string; detail?: string; tone?: OwnerTone }>;
+  metrics: Array<{ label: string; value: string; detail?: string; tone?: BuildingOwnerTone }>;
 }) {
   return (
     <View style={{ flexDirection: "row", flexWrap: "wrap", gap: 10, marginBottom: 16 }}>
@@ -264,7 +264,7 @@ export function OwnerMetricGrid({
   );
 }
 
-export function OwnerBriefCard({
+export function BuildingOwnerBriefCard({
   eyebrow,
   title,
   body,
@@ -273,7 +273,7 @@ export function OwnerBriefCard({
   eyebrow: string;
   title: string;
   body: string;
-  rows: Array<{ label: string; value: string; note: string; tone?: OwnerTone }>;
+  rows: Array<{ label: string; value: string; note: string; tone?: BuildingOwnerTone }>;
 }) {
   return (
     <GlassCard>
@@ -333,13 +333,13 @@ export function OwnerBriefCard({
   );
 }
 
-export function OwnerWorkflowCard({
+export function BuildingOwnerWorkflowCard({
   title,
   items,
   eyebrow = "Owner workflow",
 }: {
   title: string;
-  items: Array<{ label: string; detail: string; status: string; tone?: OwnerTone }>;
+  items: Array<{ label: string; detail: string; status: string; tone?: BuildingOwnerTone }>;
   eyebrow?: string;
 }) {
   return (
@@ -373,12 +373,12 @@ export function OwnerWorkflowCard({
   );
 }
 
-export function OwnerProgressCard({
+export function BuildingOwnerProgressCard({
   title,
   rows,
 }: {
   title: string;
-  rows: Array<{ label: string; value: number; detail: string; tone?: OwnerTone }>;
+  rows: Array<{ label: string; value: number; detail: string; tone?: BuildingOwnerTone }>;
 }) {
   return (
     <GlassCard>
@@ -411,7 +411,7 @@ export function OwnerProgressCard({
   );
 }
 
-export function OwnerRoyaltyCard({
+export function BuildingOwnerRoyaltyCard({
   royaltyKes,
   benchmarkKes,
   monetizedKwh,
@@ -480,7 +480,7 @@ export function OwnerRoyaltyCard({
   );
 }
 
-export function OwnerCommandCard({ building }: { building: ProjectedBuilding }) {
+export function BuildingOwnerCommandCard({ building }: { building: ProjectedBuilding }) {
   const view = building.roleViews.owner;
   const readyGates = view.gates.filter((gate) => gate.complete).length;
 
@@ -535,7 +535,7 @@ export function OwnerCommandCard({ building }: { building: ProjectedBuilding }) 
   );
 }
 
-export function OwnerScoreArtifact({
+export function BuildingOwnerScoreArtifact({
   score,
   label,
   decision,
@@ -612,7 +612,7 @@ export function OwnerScoreArtifact({
   );
 }
 
-export function OwnerGateCard({
+export function BuildingOwnerGateCard({
   gates,
   title = "Readiness gates",
 }: {
@@ -655,12 +655,12 @@ export function OwnerGateCard({
   );
 }
 
-export function OwnerJourneyCard({
+export function BuildingOwnerJourneyCard({
   title,
   items,
 }: {
   title: string;
-  items: Array<{ label: string; detail: string; status: string; tone?: OwnerTone }>;
+  items: Array<{ label: string; detail: string; status: string; tone?: BuildingOwnerTone }>;
 }) {
   return (
     <GlassCard>
@@ -689,7 +689,7 @@ export function OwnerJourneyCard({
   );
 }
 
-export function decisionTone(decision: DeploymentDecision): OwnerTone {
+export function decisionTone(decision: DeploymentDecision): BuildingOwnerTone {
   return decision === "deployment_ready" ? "good" : decision === "review" ? "warn" : "bad";
 }
 
@@ -710,7 +710,7 @@ export function stageLabel(stage: string) {
 }
 
 /** Dashed placeholder for proposed-flow surfaces (design-handoff wireframe). */
-export function OwnerWireframeWell({ height = 120, label }: { height?: number; label: string }) {
+export function BuildingOwnerWireframeWell({ height = 120, label }: { height?: number; label: string }) {
   return (
     <View
       style={{
@@ -742,7 +742,7 @@ export function OwnerWireframeWell({ height = 120, label }: { height?: number; l
   );
 }
 
-function OwnerHeroCard({ hero }: { hero: OwnerHero }) {
+function BuildingOwnerHeroCard({ hero }: { hero: BuildingOwnerHero }) {
   return (
     <PaletteCard
       borderRadius={radius.xl}
@@ -789,7 +789,7 @@ function OwnerHeroCard({ hero }: { hero: OwnerHero }) {
   );
 }
 
-function OwnerActionRail({ actions }: { actions: string[] }) {
+function BuildingOwnerActionRail({ actions }: { actions: string[] }) {
   return (
     <ScrollView horizontal showsHorizontalScrollIndicator={false} style={{ marginBottom: 18 }}>
       {actions.map((action, index) => (
@@ -814,7 +814,7 @@ function OwnerActionRail({ actions }: { actions: string[] }) {
   );
 }
 
-function OwnerActivityCard({ activity }: { activity: string[] }) {
+function BuildingOwnerActivityCard({ activity }: { activity: string[] }) {
   return (
     <GlassCard>
       <View style={{ flexDirection: "row", alignItems: "center", justifyContent: "space-between", marginBottom: 6 }}>
@@ -852,7 +852,7 @@ function OwnerActivityCard({ activity }: { activity: string[] }) {
   );
 }
 
-function SnapshotStat({ label, value, tone }: { label: string; value: string; tone: OwnerTone }) {
+function SnapshotStat({ label, value, tone }: { label: string; value: string; tone: BuildingOwnerTone }) {
   return (
     <View
       style={{
@@ -871,7 +871,7 @@ function SnapshotStat({ label, value, tone }: { label: string; value: string; to
   );
 }
 
-function RoyaltyStat({ label, value, tone = "neutral" }: { label: string; value: string; tone?: OwnerTone }) {
+function RoyaltyStat({ label, value, tone = "neutral" }: { label: string; value: string; tone?: BuildingOwnerTone }) {
   return (
     <View
       style={{
@@ -890,7 +890,7 @@ function RoyaltyStat({ label, value, tone = "neutral" }: { label: string; value:
   );
 }
 
-function OwnerProfileStat({ value, label }: { value: string; label: string }) {
+function BuildingOwnerProfileStat({ value, label }: { value: string; label: string }) {
   return (
     <View style={profileStyles.stat}>
       <Text style={profileStyles.statValue}>{value}</Text>
@@ -984,14 +984,14 @@ const profileStyles = StyleSheet.create({
   },
 });
 
-function briefToneFg(t?: OwnerTone) {
+function briefToneFg(t?: BuildingOwnerTone) {
   if (t === "good") return colors.green;
   if (t === "warn") return colors.amber;
   if (t === "bad") return colors.red;
   return colors.text;
 }
 
-function toneColor(tone: OwnerTone = "neutral") {
+function toneColor(tone: BuildingOwnerTone = "neutral") {
   if (tone === "good") {
     return colors.green;
   }

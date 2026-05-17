@@ -587,6 +587,7 @@ Gross revenue (prepaid kWh * tariff_kes_per_kwh)
 
 ## Change log
 
+- **2026-05-17** (v2.6) — **BUILD_PLAN P0.1.6 (owner → building-owner folder)** — Removed `mobile/components/owner/`; embedded BO routes import API-backed screens from [`BuildingOwnerScreens.tsx`](../mobile/components/building-owner/BuildingOwnerScreens.tsx). Kept [`BuildingOwnerShared.tsx`](../mobile/components/building-owner/BuildingOwnerShared.tsx) + [`BuildingOwnerAccountScreen.tsx`](../mobile/components/building-owner/BuildingOwnerAccountScreen.tsx) for hidden owner-account route. Deleted duplicate `OwnerHome`/`OwnerEarnings`/`OwnerListBuilding` scaffolds and all `proposed-flow/Owner*` copies.
 - **2026-05-16** (v2.5) — Field-walk of the remaining 14 Provider/Electrician/Financier §4 rows. For each, the underlying component file was opened and rendered content compared item-by-item against the relevant scenario doc screen list.
   - **3 upgrades to ✅ Pass:**
     - §4.4 Provider Generation (4/4 items: share-gate, array list with %, today's kWh, empty-state — `ProviderGenerationScreen.tsx` 102L)
