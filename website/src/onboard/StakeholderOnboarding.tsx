@@ -1,7 +1,9 @@
 import type { PublicRole } from "@emappa/shared";
 import { BuildingOwnerWebOnboarding } from "./building-owner/BuildingOwnerWebOnboarding";
-import { ContributorWebOnboarding } from "./contributor/ContributorWebOnboarding";
+import { ElectricianWebOnboarding } from "./electrician";
+import { FinancierWebOnboarding } from "./financier";
 import { HomeownerOnboarding } from "./homeowner/HomeownerOnboarding";
+import { ProviderWebOnboarding } from "./provider";
 import { ResidentWebOnboarding } from "./resident/ResidentWebOnboarding";
 
 export function StakeholderOnboarding({
@@ -20,8 +22,8 @@ export function StakeholderOnboarding({
   if (role === "building_owner") {
     return <BuildingOwnerWebOnboarding onFinished={onFinished} />;
   }
-  if (role === "provider" || role === "electrician" || role === "financier") {
-    return <ContributorWebOnboarding role={role} onFinished={onFinished} />;
-  }
+  if (role === "provider") return <ProviderWebOnboarding onFinished={onFinished} />;
+  if (role === "electrician") return <ElectricianWebOnboarding onFinished={onFinished} />;
+  if (role === "financier") return <FinancierWebOnboarding onFinished={onFinished} />;
   return null;
 }
