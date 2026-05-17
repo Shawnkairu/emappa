@@ -7,19 +7,66 @@
 
 ---
 
+## OPERATOR: one-line kickoff
+
+In a fresh chat, paste exactly this:
+
+```
+Read docs/agents/claude-backend.md and proceed with your task.
+```
+
+That's it. The agent runs §0, reads the docs in §3, picks the next task
+via §6, and starts. You only need to interrupt if §8 doctrine triggers or
+§9 escalation triggers.
+
+---
+
 ## 0. If you're starting fresh: rehydration in 3 commands
 
-Run these three first, before reading anything else:
+Run these first, before reading anything else:
 
 ```sh
 cd /Users/shawnkairu/emappa/.claude/worktrees/agent-backend
-git fetch origin && git log --oneline origin/agent/backend | head -30
+git stash --include-untracked --message "pre-rehydration stash"   # safe even if no changes
+git checkout agent/backend                                        # main branch for this agent
+git fetch origin && git pull --ff-only origin agent/backend
+git log --oneline origin/agent/backend | head -30
 npm run audit:missing
 ```
 
 The output tells you (a) which task IDs are already merged on your branch,
 (b) the current MISSING.md tally and any drift. With those two facts you can
 deterministically pick the next task per §6 below.
+
+If you were mid-task on a `task/...` branch before this rehydration:
+
+```sh
+git checkout task/<the-branch-you-were-on>
+git stash pop    # restore your in-progress changes
+```
+
+### If the worktree doesn't exist (fresh machine / lost worktrees)
+
+```sh
+cd /Users/shawnkairu/emappa
+git worktree add .claude/worktrees/agent-backend agent/backend
+cd .claude/worktrees/agent-backend
+cd backend && uv venv --python 3.12 .venv && uv pip install --python .venv/bin/python -r requirements.lock
+```
+
+Then re-run the 3 rehydration commands above.
+
+### If `npm run audit:missing` fails ("script not defined")
+
+Your branch is missing the audit script. Coordinator picks it up from main:
+
+```sh
+git checkout main -- scripts/audit-missing.mjs
+# Add `"audit:missing": "node scripts/audit-missing.mjs"` to package.json scripts
+git add scripts/audit-missing.mjs package.json
+git commit -m "chore(tooling): adopt audit-missing walker from main"
+git push origin agent/backend
+```
 
 ---
 
@@ -141,10 +188,15 @@ git log origin/agent/backend --oneline | grep -oE "P[0-9]+\.[0-9]+(\.[0-9]+)?(-[
 ```
 
 ### Step B — list your assigned tasks (objective: BUILD_PLAN)
-Open [`docs/BUILD_PLAN.md`](../BUILD_PLAN.md). Search for `Claude backend`
-in the Owner column. Phases run in order: P0 → P1 → P2 → P3 → P4 → P5 → P6
-→ P7 → P8 → P9. Within a phase, work sub-section by sub-section
-(e.g. P2.6.1, P2.6.2, ..., P2.6.6).
+Open [`docs/BUILD_PLAN.md`](../BUILD_PLAN.md). Search for **any** of these
+in the Owner column (case-sensitive substring match):
+
+- `Claude backend`
+- `Claude backend +` (co-owned tasks, e.g. P3.6.2, P4.6.8, P5.6.10, P6.6.11)
+
+Phases run in order: P0 → P1 → P2 → P3 → P4 → P5 → P6 → P7 → P8 → P9.
+Within a phase, work sub-section by sub-section (e.g. P2.6.1, P2.6.2, ...,
+P2.6.6).
 
 ### Step C — diff: next task = first assigned that isn't completed
 The first task in BUILD_PLAN's Claude backend column that doesn't appear
@@ -152,8 +204,14 @@ in Step A's list is your next task.
 
 ### Step D — check the ledger in §11 below
 The ledger at the bottom of this file is your human-readable cross-check.
-If git history and ledger disagree, git history wins — append a ledger
-correction line, then proceed.
+
+**Self-healing protocol:** if a task ID appears in Step A's git output but
+NOT in the §11 ledger, append a backfill line to the ledger at the start
+of this session. If the ledger has an ID that doesn't appear in git, that's
+a real anomaly — STOP and ask the operator.
+
+Git history is the source of truth; the ledger is the human-readable index
+that must mirror it.
 
 ### Step E — if you can't deterministically identify the next task
 **STOP. Ask the operator.** Never invent a task that's not in BUILD_PLAN.
@@ -167,8 +225,23 @@ git log origin/agent/web    --oneline | head -5    # any new web work?
 git log origin/main --oneline | head -5            # any phase merges I missed?
 ```
 
-If a sibling branch has new work that needs phase-merging per
-SPRINT_KICKOFF.md, that's your task before per-phase backend work.
+**Phase-merge readiness checklist** (do not phase-merge into main until ALL true):
+1. All 3 branches have completed every task in their owner-column for
+   the phase being merged. Verify by `git log origin/agent/{role} --oneline | grep -oE "P{N}\.[0-9]+(\.[0-9]+)?" | sort -uV` and diffing against BUILD_PLAN.
+2. Each branch's `npm run ci` is green when checked in isolation.
+3. `npm run audit:missing` from each branch reports no MISSING→EXISTS
+   drift for that phase's primitives.
+4. Doctrine tripwires in §8 are all still passing on each branch
+   (run targeted tests).
+5. There are no open task branches with unmerged work on any branch.
+
+If even one item fails, phase-merge is not ready — note which branch
+is blocking and proceed with your own backend work in the meantime.
+
+If everything passes, follow the SPRINT_KICKOFF.md "End-of-phase gate"
+ceremony: merge backend → mobile → web into main (in that order), full
+CI on main, tag `phase-P{N}-done-YYYY-MM-DD`, run audit-missing on
+main, log the merge in §11 ledger.
 
 ---
 
@@ -354,11 +427,25 @@ truth; the ledger is the human-readable index.
 - 2026-05-17 — P1.6.3-6 four resident endpoints (load-profile, queue-position, queue-request, ats-state) — merged c149275 into agent/backend
 - 2026-05-17 — Coordinator: tag phase-P1-backend-done-2026-05-17 on agent/backend
 
-### Active deferrals (queued — do these before P2 closes)
-- **P1.6.7 post-review hardening** — three small follow-ups identified in P1 self-review:
+### Active deferrals (queued backend tasks — do these before P2 closes)
+- **P1.6.7 post-review hardening** — two small follow-ups identified in P1 self-review:
   1. Wire `/pledges` to also write a `wallet_transaction` row (parity with legacy `/prepaid/commit`)
   2. Populate `AUDIT_REQUIRED_PATHS` with regex for `/pledges`, `/tokens/purchase`, `/residents/*` so middleware enforces reason BEFORE handler runs (belt + suspenders against drift)
-  3. Coordinator note to Cursor mobile: P1.2.3 ats-detail screen must pass `?apartment_label=` query param (source from `user.profile.apartmentLabel`, set during onboarding step 5)
+
+### Coordinator notes outbound (to other agents)
+
+These are notes I (Claude backend, as coordinator) need to surface to the
+other two agents. Each note is also mirrored in the target agent's
+`docs/agents/<role>.md` ledger so they see it when they rehydrate.
+
+- **To Cursor mobile (P1.2.3 ats-detail screen):** the backend endpoint
+  `GET /residents/{user_id}/ats-state` requires `?apartment_label=` query
+  param. Source from `user.profile.apartmentLabel` (set during onboarding
+  step P1.4.1 "find building"). Until per-user apartment FK exists, the
+  caller is responsible for knowing its own apartment label.
+- **To Codex web (cockpit Settlement Monitor + Resident wallet web mirror):**
+  same apartment_label issue applies if/when those surfaces show per-apartment
+  ATS state. Use the same `?apartment_label=` query param convention.
 
 ### Next on your queue (per BUILD_PLAN)
 - **P2.6.1** — `POST /homeowner/{id}/authority-docs`

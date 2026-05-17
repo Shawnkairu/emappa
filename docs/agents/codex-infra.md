@@ -7,13 +7,30 @@
 
 ---
 
+## OPERATOR: one-line kickoff
+
+In a fresh chat, paste exactly this:
+
+```
+Read docs/agents/codex-infra.md and proceed with your task.
+```
+
+That's it. The agent runs §0, reads the docs in §3, picks the next task
+via §6, and starts. You only need to interrupt if §8 doctrine triggers or
+§9 escalation triggers.
+
+---
+
 ## 0. If you're starting fresh: rehydration in 3 commands
 
-Run these three first, before reading anything else:
+Run these first, before reading anything else:
 
 ```sh
 cd /Users/shawnkairu/emappa/.claude/worktrees/agent-web
-git fetch origin && git log --oneline origin/agent/web | head -30
+git stash --include-untracked --message "pre-rehydration stash"   # safe even if no changes
+git checkout agent/web                                            # main branch for this agent
+git fetch origin && git pull --ff-only origin agent/web
+git log --oneline origin/agent/web | head -30
 npm run audit:missing
 ```
 
@@ -21,6 +38,37 @@ The output tells you (a) which commits are on your branch, (b) the current
 MISSING.md tally. Cross-reference against the ledger in §11 of this file to
 map commits → task IDs (your commit subjects don't always carry task IDs;
 see §7 for the convention going forward).
+
+If you were mid-task on a `task/...` branch before this rehydration:
+
+```sh
+git checkout task/<the-branch-you-were-on>
+git stash pop    # restore your in-progress changes
+```
+
+### If the worktree doesn't exist (fresh machine / lost worktrees)
+
+```sh
+cd /Users/shawnkairu/emappa
+git worktree add .claude/worktrees/agent-web agent/web
+cd .claude/worktrees/agent-web
+npm install   # full workspace install
+```
+
+Then re-run the 3 rehydration commands above.
+
+### If `npm run audit:missing` fails ("script not defined")
+
+Your branch is missing the audit walker. One-time fix:
+
+```sh
+git fetch origin
+git checkout main -- scripts/audit-missing.mjs
+# Then add `"audit:missing": "node scripts/audit-missing.mjs"` to package.json scripts
+git add scripts/audit-missing.mjs package.json
+git commit -m "chore(tooling): adopt audit-missing walker from main"
+git push origin agent/web
+```
 
 ---
 
@@ -160,10 +208,14 @@ the human-readable mapping in §11. Going forward (§7), commit messages MUST
 include `feat(P{N}.{g}.{t}):` prefix.
 
 ### Step B — list your assigned tasks (objective: BUILD_PLAN)
-Open [`docs/BUILD_PLAN.md`](../BUILD_PLAN.md). Search for `Codex web`
-in the Owner column. Phases run in order: P0 → P1 → ... → P9. Within a
-phase, work sub-section by sub-section. P7 (Cockpit) is your largest
-chunk — 70 tasks.
+Open [`docs/BUILD_PLAN.md`](../BUILD_PLAN.md). Search for **any** of these
+in the Owner column (case-sensitive substring match):
+
+- `Codex web`
+- `Codex web +` (co-owned tasks, e.g. P3.6.2, P4.6.8, P5.6.10, P6.6.11)
+
+Phases run in order: P0 → P1 → ... → P9. Within a phase, work sub-section
+by sub-section. P7 (Cockpit) is your largest chunk — 70 tasks.
 
 ### Step C — diff: next task = first assigned that isn't completed
 The first task in BUILD_PLAN's Codex web column that doesn't appear
@@ -171,7 +223,14 @@ in Step A's list (or the §11 ledger) is your next task.
 
 ### Step D — check the ledger in §11
 The ledger is the authoritative human-readable history because your
-commit subjects don't all carry IDs.
+commit subjects don't all carry IDs (pre-2026-05-17). Going forward
+(§7), all commits start with `feat(P{N}.{g}.{t}):` so the git grep
+will work directly.
+
+**Self-healing protocol:** if a task ID appears in Step A's git output but
+NOT in the §11 ledger, append a backfill line to the ledger at the start
+of this session. If the ledger has an ID that doesn't appear in git, that's
+a real anomaly — STOP and ask the operator.
 
 ### Step E — if you can't deterministically identify the next task
 **STOP. Ask the operator.** Never invent a task that's not in BUILD_PLAN.
@@ -395,6 +454,19 @@ Mapping is shown below. Going forward (per §7), all commits start with
 
 #### Phase done
 - 2026-05-17 — Coordinator merge P0 web → main complete (commit 9b48147); tag phase-P0-done-2026-05-17
+
+### Coordinator notes from Claude backend (inbound)
+- **2026-05-17 — Apartment-state surfaces**: if/when cockpit Settlement
+  Monitor or per-resident wallet web mirror shows per-apartment ATS state,
+  the backend endpoint requires `?apartment_label=` query param (same
+  convention Cursor mobile uses). Source from the resident's
+  `user.profile.apartmentLabel`.
+- **2026-05-17 — P1.6.x backend complete**: backend endpoints for
+  /pledges, /tokens/purchase, /residents/{id}/load-profile,
+  queue-position, queue-request, ats-state are merged on agent/backend
+  (land on main at P1 phase merge). When you build P1.5.* web parity
+  screens, use `<RequiresReason>` wrapper for any mutation form — the
+  backend rejects writes without a non-empty `reason` field (CR-2).
 
 ### Next on your queue (per BUILD_PLAN)
 - **P1.5.1** — `website/src/screens/stakeholders/resident/home.tsx` web mirror

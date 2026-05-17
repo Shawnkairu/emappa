@@ -7,19 +7,67 @@
 
 ---
 
+## OPERATOR: one-line kickoff
+
+In a fresh chat, paste exactly this:
+
+```
+Read docs/agents/cursor-mobile.md and proceed with your task.
+```
+
+That's it. The agent runs §0, reads the docs in §3, picks the next task
+via §6, and starts. You only need to interrupt if §8 doctrine triggers or
+§9 escalation triggers.
+
+---
+
 ## 0. If you're starting fresh: rehydration in 3 commands
 
-Run these three first, before reading anything else:
+Run these first, before reading anything else:
 
 ```sh
 cd /Users/shawnkairu/emappa/.claude/worktrees/agent-mobile
-git fetch origin && git log --oneline origin/agent/mobile | head -30
+git stash --include-untracked --message "pre-rehydration stash"   # safe even if no changes
+git checkout agent/mobile                                         # main branch for this agent
+git fetch origin && git pull --ff-only origin agent/mobile
+git log --oneline origin/agent/mobile | head -30
 npm run audit:missing
 ```
 
 The output tells you (a) which task IDs are already merged on your branch,
 (b) the current MISSING.md tally. With those two facts you can deterministically
 pick the next task per §6 below.
+
+If you were mid-task on a `task/...` branch before this rehydration:
+
+```sh
+git checkout task/<the-branch-you-were-on>
+git stash pop    # restore your in-progress changes
+```
+
+### If the worktree doesn't exist (fresh machine / lost worktrees)
+
+```sh
+cd /Users/shawnkairu/emappa
+git worktree add .claude/worktrees/agent-mobile agent/mobile
+cd .claude/worktrees/agent-mobile
+npm install --workspace @emappa/mobile
+```
+
+Then re-run the 3 rehydration commands above.
+
+### If `npm run audit:missing` fails ("script not defined")
+
+Your branch is missing the audit walker. One-time fix:
+
+```sh
+git fetch origin
+git checkout main -- scripts/audit-missing.mjs
+# Then add `"audit:missing": "node scripts/audit-missing.mjs"` to package.json scripts
+git add scripts/audit-missing.mjs package.json
+git commit -m "chore(tooling): adopt audit-missing walker from main"
+git push origin agent/mobile
+```
 
 ---
 
@@ -148,9 +196,14 @@ If a commit subject doesn't carry a task ID, cross-reference against the
 ledger in §11 of this file.
 
 ### Step B — list your assigned tasks (objective: BUILD_PLAN)
-Open [`docs/BUILD_PLAN.md`](../BUILD_PLAN.md). Search for `Cursor mobile`
-in the Owner column. Phases run in order: P0 → P1 → ... → P9. Within a
-phase, work sub-section by sub-section.
+Open [`docs/BUILD_PLAN.md`](../BUILD_PLAN.md). Search for **any** of these
+in the Owner column (case-sensitive substring match):
+
+- `Cursor mobile`
+- `Cursor mobile +` (co-owned tasks, e.g. P3.6.2, P4.6.8, P5.6.10, P6.6.11)
+
+Phases run in order: P0 → P1 → ... → P9. Within a phase, work sub-section
+by sub-section.
 
 ### Step C — diff: next task = first assigned that isn't completed
 The first task in BUILD_PLAN's Cursor mobile column that doesn't appear
@@ -158,8 +211,14 @@ in Step A's list is your next task.
 
 ### Step D — check the ledger in §11
 Cross-check against the human-readable history at the bottom of this file.
-If git history and ledger disagree, git history wins — append a correction
-line, then proceed.
+
+**Self-healing protocol:** if a task ID appears in Step A's git output but
+NOT in the §11 ledger, append a backfill line to the ledger at the start
+of this session. If the ledger has an ID that doesn't appear in git, that's
+a real anomaly — STOP and ask the operator.
+
+Git history is the source of truth; the ledger is the human-readable index
+that must mirror it.
 
 ### Step E — if you can't deterministically identify the next task
 **STOP. Ask the operator.** Never invent a task that's not in BUILD_PLAN.
@@ -392,30 +451,54 @@ Git history is the source of truth; the ledger is the human-readable index.
 #### Phase done
 - 2026-05-17 — Coordinator merge P0 mobile → main complete (commit 8621169); tag phase-P0-done-2026-05-17
 
-### Coordinator note from Claude backend (2026-05-17)
-- **For P1.2.3 ats-detail screen**: the backend endpoint
+### P1 (Resident e2e — mobile)
+
+Note: also covered by §6 git-log grep, but mirrored here per ledger contract.
+
+- 2026-05-17 — P1.1.1 wire resident home availability + queue pills — merged 25ff668 into agent/mobile
+- 2026-05-17 — P1.1.2 wire resident energy chart + allocation explainer — merged 47c5b71 into agent/mobile
+- 2026-05-17 — P1.1.3 wire resident wallet pledges/tokens/ownership tabs — merged 9557956 into agent/mobile
+- 2026-05-17 — P1.1.4 wire resident profile building + load sections — merged 930bbfe into agent/mobile
+- 2026-05-17 — P1.2.1–P1.2.8 add 8 resident embedded route shells (single PR) — merged 21b1267 into agent/mobile
+- 2026-05-17 — P1.2.2 implement queue-detail with §6.3 priority factors (deeper impl atop the shell) — merged 73e21ae into agent/mobile
+- 2026-05-17 — P1.3.4 extract PledgeHistoryList for resident wallet — merged 4dfd33a into agent/mobile
+- 2026-05-17 — P1.3.5 OwnershipMarketplaceCard per Scenario A §8.6 — merged 69cf4eb into agent/mobile
+- 2026-05-17 — P1.4.1 expand resident find-building onboarding — merged 8e7130f into agent/mobile
+
+### Coordinator notes from Claude backend (inbound)
+- **2026-05-17 — P1.2.3 ats-detail deeper impl**: the backend endpoint
   `GET /residents/{user_id}/ats-state` requires `?apartment_label=` query
   param. Source it from `user.profile.apartmentLabel` (which onboarding
   step P1.4.1 "find building" will need to set). Until per-user apartment
   FK exists, the caller is responsible for knowing its own apartment label.
+- **2026-05-17 — P1.6.x backend complete**: backend endpoints for
+  POST /pledges, POST /tokens/purchase, POST /residents/{id}/load-profile,
+  GET /residents/{id}/queue-position, POST /residents/{id}/queue-request,
+  GET /residents/{id}/ats-state are all merged on agent/backend (will land
+  on main at P1 phase merge). Your embedded routes can wire to these.
+  All mutations require a non-empty `reason` field in the request body
+  (CR-2). Use `<RequiresReason>`-equivalent pattern on mobile.
 
-### Next on your queue (per BUILD_PLAN)
-- **P1.1.1** — `mobile/app/(resident)/home.tsx` — wire 7-state
-  BuildingAvailabilityStatePill, CapacityQueueStatusPill, branched
-  pre-live vs live hero, A5 mutex
-- **P1.1.2** — `(resident)/energy.tsx` — EnergyTodayChart, share-gated
-  GenerationPanel, SyntheticBadge, AllocationExplainer modal
-- **P1.1.3** — `(resident)/wallet.tsx` — segmented control
-- **P1.1.4** — `(resident)/profile.tsx` — embedded Load Profile editor
-- **P1.2.1–8** — 8 embedded routes (pledge-detail, queue-detail,
-  ats-detail, marketplace, load-profile-edit, drs-detail, token-purchase,
-  alert-detail)
-- **P1.3.1–5** — 5 resident-specific components
-- **P1.4.1–5** — 5 resident onboarding steps
-- ... and so on through P1.6 (but P1.6 = Claude backend's column)
+### Next on your queue (per BUILD_PLAN, after deduping against §11 above)
 
-Total in P1: ~25 mobile tasks. Plus parallel P2 (Homeowner), P3 (BO),
-P4 (Provider), P5 (Electrician), P6 (Financier) — all your column.
+P1 mobile remaining (~12 tasks):
+- **P1.2.3** — ats-detail deeper impl atop the shell (see coordinator note)
+- **P1.2.4** — marketplace deeper impl
+- **P1.2.5** — load-profile-edit deeper impl
+- **P1.2.6** — drs-detail deeper impl
+- **P1.2.7** — token-purchase deeper impl (requires building.stage='live'
+  + capacity_cleared per ADR 0002 doctrine)
+- **P1.3.1** — PledgeBalanceCard
+- **P1.3.2** — LoadProfileConfidenceMeter (L1/L2/L3 visualizer)
+- **P1.3.3** — AllocationExplainer modal (may already be inline in P1.1.2;
+  if so, extract + mark complete)
+- **P1.4.2** — confirm building onboarding step
+- **P1.4.3** — load profile L1 onboarding step
+- **P1.4.4** — capacity check onboarding step
+- **P1.4.5** — pledge/buy decision onboarding step
+
+Then P2 (Homeowner ~25), P3 (BO ~16), P4 (Provider ~30), P5 (Electrician
+~25), P6 (Financier ~25). P1.5.* + Pn.5.* web parity are Codex web's column.
 
 ---
 
