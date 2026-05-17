@@ -364,7 +364,7 @@
 | ReleaseSchedule | `mobile/components/financier/ReleaseSchedule.tsx` | MISSING |
 | EnergyFlowChart | `mobile/components/shared/EnergyFlowChart.tsx` | MISSING |
 | UtilizationTrend | `mobile/components/financier/UtilizationTrend.tsx` | MISSING |
-| DataQualityBadge (verified/estimated/missing/disputed/conservative) | `mobile/components/shared/DataQualityBadge.tsx` | MISSING |
+| DataQualityBadge (verified/estimated/missing/disputed/conservative) | `mobile/components/shared/DataQualityBadge.tsx` | BUILT |
 | ClaimPerformanceCard | `mobile/components/financier/ClaimPerformanceCard.tsx` | MISSING |
 | BalanceSummary | `mobile/components/financier/BalanceSummary.tsx` | MISSING |
 | CashflowTimeline | `mobile/components/financier/CashflowTimeline.tsx` | MISSING |
