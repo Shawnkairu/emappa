@@ -1,173 +1,152 @@
 import { useRouter } from "expo-router";
 import { StyleSheet, Text, View } from "react-native";
-import { PaletteCard, Pill, colors, spacing, typography } from "@emappa/ui";
-import { ResidentInfoCard, ResidentMetricGrid, ResidentPrimaryButton, ResidentScreenFrame, residentStyles } from "./ResidentScaffold";
-import { ROLE_TINT } from "./residentTint";
+import type { ProjectedBuilding } from "@emappa/shared";
+import { colors, spacing, typography } from "@emappa/ui";
+import {
+  BuildingAvailabilityStatePill,
+  CapacityQueueStatusPill,
+  DRSProgressCard,
+  LiveSupplyIndicator,
+  PilotBanner,
+  TokenBalanceHero,
+} from "../shared";
+import { PledgeBalanceCard } from "./PledgeBalanceCard";
+import { ResidentMetricGrid, ResidentPrimaryButton, ResidentScreenFrame } from "./ResidentScaffold";
+import { TokenPurchaseCTA } from "./TokenPurchaseCTA";
+import {
+  canResidentBuyTokens,
+  canEditPledge,
+  deriveBuildingAvailabilityState,
+  deriveCapacityQueueStatus,
+  isResidentLive,
+} from "./residentHomeState";
 import { formatKes, formatKwh, formatPercent, residentView } from "./residentUtils";
 
 export function ResidentHomeScreen() {
-  const router = useRouter();
-
   return (
     <ResidentScreenFrame
       section="Home"
       title="Today"
-      subtitle="Wallet, DRS status, and whether your apartment is cleared for the e.mappa solar path."
+      subtitle="Building availability, capacity queue, and your apartment path to prepaid solar."
     >
-      {(building) => {
-        const view = residentView(building);
-        const hasBalance = view.prepaidBalanceKes > 0;
-        const queue = building.roleViews.resident.capacityQueue;
-        const atsStatus = building.roleViews.resident.atsActivation?.status ?? "pending";
-
-        return (
-          <>
-            <PaletteCard borderRadius={32} padding={20} style={{ ...styles.hero, backgroundColor: ROLE_TINT.bg }}>
-              <View style={styles.heroTop}>
-                <View style={styles.buildingPill}>
-                  <View style={residentStyles.orangeDot} />
-                  <Text style={styles.buildingName}>{building.project.name}</Text>
-                </View>
-                <Pill tone={hasBalance ? "good" : "warn"}>{hasBalance ? "funded" : "pledge"}</Pill>
-              </View>
-              <Text style={styles.balance}>{formatKes(view.prepaidBalanceKes)}</Text>
-              <Text style={styles.balanceLabel}>pledged / prepaid balance</Text>
-              <View style={styles.actionRow}>
-                <View style={styles.nextAction}>
-                  <Text style={styles.nextLabel}>Next</Text>
-                  <Text style={styles.nextText}>{hasBalance ? "Track energy + DRS" : "Pledge to join demand signal"}</Text>
-                </View>
-                <ResidentPrimaryButton
-                  onPress={() => router.push("/(resident)/wallet")}
-                  accessibilityLabel="Open wallet and pledges"
-                >
-                  Open wallet
-                </ResidentPrimaryButton>
-              </View>
-            </PaletteCard>
-
-            <ResidentMetricGrid
-              items={[
-                {
-                  label: "Coverage",
-                  value: formatPercent(view.solarCoverage),
-                  detail: `${formatKwh(view.monthlySolarKwh)} monetized solar (participating path).`,
-                  tone: view.solarCoverage > 0 ? "good" : "warn",
-                },
-                {
-                  label: "Savings",
-                  value: formatKes(view.savingsKes),
-                  detail: "Against grid-only energy.",
-                  tone: view.savingsKes > 0 ? "good" : "neutral",
-                },
-                {
-                  label: "DRS",
-                  value: building.drs.label,
-                  detail: building.drs.reasons[0] ?? "No visible blocker.",
-                  tone: building.drs.reasons.length === 0 ? "good" : "warn",
-                },
-                {
-                  label: "Stage",
-                  value: building.project.stage,
-                  detail: `${building.project.units} units · only enrolled apartments ride the e.mappa ATS path.`,
-                  tone: "neutral",
-                },
-              ]}
-            />
-
-            <ResidentInfoCard
-              eyebrow="Apartment hardware"
-              title="Pledge first; ATS activation unlocks usable tokens."
-              detail="e.mappa solar uses a dedicated supply path. Your unit needs capacity clearance and an apartment-level ATS at or near your PAYG meter before solar tokens apply; non-participating apartments stay on KPLC only. No cleared pledge means no allocation signal."
-              synthetic
-            >
-              <ResidentMetricGrid
-                items={[
-                  {
-                    label: "Queue",
-                    value: queue?.status.replace(/_/g, " ") ?? "capacity review",
-                    detail: queue ? `Position ${queue.position}. ${queue.detail}` : "Capacity status uses pilot project evidence.",
-                    tone: queue?.status === "activated" || queue?.status === "capacity_cleared" ? "good" : "warn",
-                  },
-                  {
-                    label: "ATS",
-                    value: atsStatus.replace(/_/g, " "),
-                    detail: building.roleViews.resident.atsActivation?.evidenceLabel ?? "ATS/PAYG map required before usable tokens.",
-                    tone: atsStatus === "ready" ? "good" : atsStatus === "blocked" ? "bad" : "warn",
-                  },
-                ]}
-              />
-            </ResidentInfoCard>
-          </>
-        );
-      }}
+      {(building) => <ResidentHomeContent building={building} />}
     </ResidentScreenFrame>
   );
 }
 
+function ResidentHomeContent({ building }: { building: ProjectedBuilding }) {
+  const router = useRouter();
+  const view = residentView(building);
+  const availability = deriveBuildingAvailabilityState(building);
+  const queueStatus = deriveCapacityQueueStatus(building);
+  const live = isResidentLive(building);
+  const showBuyTokens = canResidentBuyTokens(building);
+  const queue = building.roleViews.resident.capacityQueue;
+  const estimatedKwh = Math.round(view.monthlySolarKwh / 30);
+
+  return (
+    <>
+      <PilotBanner compact />
+
+      <View style={styles.pillRow}>
+        <BuildingAvailabilityStatePill state={availability} />
+        <CapacityQueueStatusPill status={queueStatus} />
+      </View>
+
+      {live ? (
+        <>
+          <TokenBalanceHero
+            kesValue={formatKes(view.prepaidBalanceKes)}
+            kwhValue={formatKwh(estimatedKwh)}
+            subtitle="Usable solar tokens only after capacity clearance and ATS verification at your PAYG meter."
+            disabled={false}
+          />
+          <LiveSupplyIndicator
+            atsState={showBuyTokens ? "activated" : "ats_installed_unverified"}
+            supply={showBuyTokens ? "solar" : "kplc"}
+          />
+          {showBuyTokens ? <TokenPurchaseCTA /> : null}
+        </>
+      ) : (
+        <>
+          <PledgeBalanceCard
+            amountKes={view.prepaidBalanceKes}
+            canEdit={canEditPledge(building)}
+            onOpenWallet={() => router.push("/(resident)/wallet")}
+            onEditPledge={() => router.push("/(resident)/_embedded/pledge-detail")}
+          />
+          {availability === "A5" ? (
+            <View style={styles.a5Note}>
+              <Text style={styles.a5Title}>Solar is on the building; your unit is not connected yet</Text>
+              <Text style={styles.a5Detail}>
+                Complete ATS activation steps before buying tokens. Token purchase stays hidden until your apartment is
+                capacity-cleared and verified.
+              </Text>
+            </View>
+          ) : null}
+          <ResidentPrimaryButton
+            onPress={() => router.push("/(resident)/wallet")}
+            accessibilityLabel="Open wallet and pledges"
+          >
+            Open wallet
+          </ResidentPrimaryButton>
+        </>
+      )}
+
+      <View style={styles.drsWrap}>
+        <DRSProgressCard drs={building.drs} />
+        <ResidentPrimaryButton
+          onPress={() => router.push("/(resident)/_embedded/drs-detail")}
+          accessibilityLabel="View deployment readiness detail"
+        >
+          View DRS detail
+        </ResidentPrimaryButton>
+      </View>
+
+      <ResidentMetricGrid
+        items={[
+          {
+            label: "Queue",
+            value: queue?.position != null ? `#${queue.position}` : "—",
+            detail: queue?.detail ?? "Capacity queue uses pilot evidence.",
+            tone: queueStatus === "activated" || queueStatus === "capacity_cleared" ? "good" : "warn",
+          },
+          {
+            label: "Coverage",
+            value: formatPercent(view.solarCoverage),
+            detail: `${formatKwh(view.monthlySolarKwh)} monetized solar path.`,
+            tone: view.solarCoverage > 0 ? "good" : "warn",
+          },
+          {
+            label: "Savings",
+            value: formatKes(view.savingsKes),
+            detail: "Vs grid-only (range, not guaranteed).",
+            tone: view.savingsKes > 0 ? "good" : "neutral",
+          },
+          {
+            label: "DRS",
+            value: String(building.drs.score),
+            detail: building.drs.reasons[0] ?? "No visible blocker.",
+            tone: building.drs.reasons.length === 0 ? "good" : "warn",
+          },
+        ]}
+      />
+    </>
+  );
+}
+
 const styles = StyleSheet.create({
-  hero: {
-    marginBottom: spacing.lg,
+  pillRow: { gap: spacing.sm, marginBottom: spacing.lg },
+  drsWrap: { gap: spacing.sm, marginBottom: spacing.lg },
+  a5Note: {
+    borderRadius: 20,
+    borderWidth: 1,
+    borderColor: `${colors.amber}55`,
+    backgroundColor: `${colors.amber}12`,
+    padding: spacing.md,
+    marginBottom: spacing.md,
+    gap: spacing.xs,
   },
-  heroTop: {
-    alignItems: "center",
-    flexDirection: "row",
-    gap: spacing.md,
-    justifyContent: "space-between",
-  },
-  buildingPill: {
-    alignItems: "center",
-    flex: 1,
-    flexDirection: "row",
-    gap: 8,
-  },
-  buildingName: {
-    color: colors.text,
-    flex: 1,
-    fontSize: typography.small,
-    fontWeight: "800",
-  },
-  balance: {
-    color: colors.text,
-    fontSize: 42,
-    fontWeight: "800",
-    letterSpacing: -1.25,
-    lineHeight: 48,
-    marginTop: 24,
-  },
-  balanceLabel: {
-    color: colors.muted,
-    fontSize: typography.micro,
-    fontWeight: "800",
-    letterSpacing: 0.7,
-    marginTop: 3,
-    textTransform: "uppercase",
-  },
-  actionRow: {
-    alignItems: "center",
-    borderColor: "rgba(118, 73, 39, 0.12)",
-    borderRadius: 24,
-    borderWidth: StyleSheet.hairlineWidth * 2,
-    flexDirection: "row",
-    gap: spacing.md,
-    justifyContent: "space-between",
-    marginTop: 24,
-    padding: 12,
-  },
-  nextAction: {
-    flex: 1,
-  },
-  nextLabel: {
-    color: ROLE_TINT.fg,
-    fontSize: typography.micro,
-    fontWeight: "800",
-    letterSpacing: 0.7,
-    textTransform: "uppercase",
-  },
-  nextText: {
-    color: colors.text,
-    fontSize: typography.small,
-    fontWeight: "800",
-    marginTop: 3,
-  },
+  a5Title: { color: colors.text, fontSize: typography.small, fontWeight: "800", lineHeight: 20 },
+  a5Detail: { color: colors.muted, fontSize: typography.small, lineHeight: 19 },
 });
