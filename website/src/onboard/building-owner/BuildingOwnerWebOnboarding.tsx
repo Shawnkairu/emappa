@@ -1,16 +1,68 @@
-import { useState, type FormEvent } from "react";
-import { apiPostJson, completeOnboarding, geocodeQuery } from "../../lib/api";
+import { useMemo, useState, type FormEvent } from "react";
 import type { BuildingRecord } from "@emappa/shared";
+import { apiPostJson, completeOnboarding, geocodeQuery } from "../../lib/api";
+import Step1 from "./step1";
+import Step2 from "./step2";
+import Step3 from "./step3";
+import Step4 from "./step4";
+import Step5 from "./step5";
+import Step6 from "./step6";
+import Step7 from "./step7";
+import Step8 from "./step8";
 
-const steps = ["Welcome", "Building basics", "Roof", "Terms"];
+export const buildingOwnerSteps = [
+  "Welcome",
+  "Account verified",
+  "Role selected",
+  "Building location",
+  "Authority",
+  "Building profile",
+  "Roof capture",
+  "Terms preview",
+];
+
+export type BuildingOwnerForm = {
+  name: string;
+  address: string;
+  unitCount: string;
+  occupancy: string;
+  roofArea: number;
+  lat: number;
+  lon: number;
+  formattedAddress: string;
+  authorityDoc: string;
+  utilityDoc: string;
+  reviewerContact: string;
+  companyDocsReady: boolean;
+  roofType: string;
+  roofAccess: string;
+  shadedAreas: string;
+  meterAreaLocation: string;
+  residentPainPoints: string;
+  roofCaptureMode: "auto_suggest" | "owner_traced" | "typed_sqm";
+  acceptedTerms: boolean;
+};
+
+export type BuildingOwnerStepProps = {
+  form: BuildingOwnerForm;
+  busy: boolean;
+  buildingId: string | null;
+  setForm: (form: BuildingOwnerForm) => void;
+  goToStep: (step: number) => void;
+  geocodeAddress: () => void;
+  saveBasics: (event: FormEvent) => void;
+  saveRoof: (event: FormEvent) => void;
+  finish: () => void;
+};
+
+const stepScreens = [Step1, Step2, Step3, Step4, Step5, Step6, Step7, Step8];
 
 export function BuildingOwnerWebOnboarding({ onFinished }: { onFinished: () => void | Promise<void> }) {
   const [step, setStep] = useState(0);
   const [busy, setBusy] = useState(false);
   const [message, setMessage] = useState<string | null>(null);
   const [buildingId, setBuildingId] = useState<string | null>(null);
-  const [acceptedTerms, setAcceptedTerms] = useState(false);
-  const [form, setForm] = useState({
+  const [form, setForm] = useState<BuildingOwnerForm>({
     name: "",
     address: "",
     unitCount: "8",
@@ -19,7 +71,20 @@ export function BuildingOwnerWebOnboarding({ onFinished }: { onFinished: () => v
     lat: 0,
     lon: 0,
     formattedAddress: "",
+    authorityDoc: "",
+    utilityDoc: "",
+    reviewerContact: "",
+    companyDocsReady: false,
+    roofType: "",
+    roofAccess: "",
+    shadedAreas: "",
+    meterAreaLocation: "",
+    residentPainPoints: "",
+    roofCaptureMode: "typed_sqm",
+    acceptedTerms: false,
   });
+  const progress = useMemo(() => Math.round(((step + 1) / buildingOwnerSteps.length) * 100), [step]);
+  const ActiveStep = stepScreens[step] ?? Step1;
 
   async function geocodeAddress() {
     const q = form.address.trim();
@@ -31,13 +96,7 @@ export function BuildingOwnerWebOnboarding({ onFinished }: { onFinished: () => v
     setMessage(null);
     try {
       const g = await geocodeQuery(q);
-      setForm((prev) => ({
-        ...prev,
-        lat: g.lat,
-        lon: g.lon,
-        formattedAddress: g.formattedAddress,
-        address: g.formattedAddress,
-      }));
+      setForm({ ...form, lat: g.lat, lon: g.lon, formattedAddress: g.formattedAddress, address: g.formattedAddress });
     } catch (cause) {
       setMessage(cause instanceof Error ? cause.message : "Could not geocode that address.");
     } finally {
@@ -54,11 +113,11 @@ export function BuildingOwnerWebOnboarding({ onFinished }: { onFinished: () => v
       return;
     }
     if (!form.formattedAddress) {
-      setMessage("Geocode the address before continuing (tab out of the address field).");
+      setMessage("Geocode the address before continuing.");
       return;
     }
     if (!Number.isInteger(units) || units <= 1) {
-      setMessage("Building-owner onboarding is for multi-unit properties (more than one unit).");
+      setMessage("Building-owner onboarding is for multi-unit properties.");
       return;
     }
     if (!Number.isFinite(occ) || occ < 0 || occ > 100) {
@@ -79,7 +138,7 @@ export function BuildingOwnerWebOnboarding({ onFinished }: { onFinished: () => v
         kind: "apartment",
       });
       setBuildingId(result.building.id);
-      setStep(2);
+      setStep(4);
     } catch (cause) {
       setMessage(cause instanceof Error ? cause.message : "Could not create building.");
     } finally {
@@ -104,7 +163,7 @@ export function BuildingOwnerWebOnboarding({ onFinished }: { onFinished: () => v
         areaM2: form.roofArea,
         source: "owner_typed",
       });
-      setStep(3);
+      setStep(7);
     } catch (cause) {
       setMessage(cause instanceof Error ? cause.message : "Could not save roof.");
     } finally {
@@ -116,7 +175,23 @@ export function BuildingOwnerWebOnboarding({ onFinished }: { onFinished: () => v
     setBusy(true);
     setMessage(null);
     try {
-      await completeOnboarding({});
+      await completeOnboarding({
+        profile: {
+          buildingOwnerOnboarding: {
+            authorityDoc: form.authorityDoc,
+            utilityDoc: form.utilityDoc,
+            reviewerContact: form.reviewerContact,
+            companyDocsReady: form.companyDocsReady,
+            roofType: form.roofType,
+            roofAccess: form.roofAccess,
+            shadedAreas: form.shadedAreas,
+            meterAreaLocation: form.meterAreaLocation,
+            residentPainPoints: form.residentPainPoints,
+            roofCaptureMode: form.roofCaptureMode,
+            roofAreaM2: form.roofArea,
+          },
+        },
+      });
       await onFinished();
     } catch (cause) {
       setMessage(cause instanceof Error ? cause.message : "Could not finish onboarding.");
@@ -125,97 +200,42 @@ export function BuildingOwnerWebOnboarding({ onFinished }: { onFinished: () => v
     }
   }
 
+  function goToStep(nextStep: number) {
+    setMessage(null);
+    setStep(Math.min(Math.max(nextStep, 0), buildingOwnerSteps.length - 1));
+  }
+
   return (
     <main className="onboard-shell">
       <section className="onboard-card">
         <div className="onboard-header">
           <div>
             <p className="eyebrow">Building owner onboarding</p>
-            <h1>{steps[step]}</h1>
+            <h1>{buildingOwnerSteps[step]}</h1>
           </div>
+          <span aria-label={`Step ${step + 1} of ${buildingOwnerSteps.length}`}>
+            {step + 1} of {buildingOwnerSteps.length}
+          </span>
         </div>
-
-        {step === 0 ? (
-          <div className="onboard-pane">
-            <p>List a multi-unit building, capture roof area, then preview owner terms.</p>
-            <div className="onboard-actions">
-              <button type="button" onClick={() => setStep(1)}>Get started</button>
-            </div>
-          </div>
-        ) : null}
-
-        {step === 1 ? (
-          <form className="onboard-pane" onSubmit={saveBasics}>
-            <label htmlFor="bo-name">
-              Building name
-              <input id="bo-name" value={form.name} onChange={(e) => setForm({ ...form, name: e.target.value })} required />
-            </label>
-            <label htmlFor="bo-address">
-              Address
-              <input
-                id="bo-address"
-                value={form.address}
-                onChange={(e) => setForm({ ...form, address: e.target.value, formattedAddress: "" })}
-                onBlur={geocodeAddress}
-                required
-              />
-            </label>
-            <label htmlFor="bo-units">
-              Unit count
-              <input id="bo-units" inputMode="numeric" value={form.unitCount} onChange={(e) => setForm({ ...form, unitCount: e.target.value })} required />
-            </label>
-            <label htmlFor="bo-occ">
-              Occupancy estimate (%)
-              <input id="bo-occ" inputMode="numeric" value={form.occupancy} onChange={(e) => setForm({ ...form, occupancy: e.target.value })} required />
-            </label>
-            {form.formattedAddress ? <p className="form-note">Geocoded: {form.formattedAddress}</p> : null}
-            <div className="onboard-actions">
-              <button type="button" className="ghost-action" onClick={() => setStep(0)}>Back</button>
-              <button type="submit" disabled={busy}>{busy ? "Saving…" : "Continue"}</button>
-            </div>
-          </form>
-        ) : null}
-
-        {step === 2 ? (
-          <form className="onboard-pane" onSubmit={saveRoof}>
-            <label htmlFor="bo-roof">
-              Usable roof area (sqm)
-              <input
-                id="bo-roof"
-                type="number"
-                min={10}
-                value={form.roofArea}
-                onChange={(e) => setForm({ ...form, roofArea: Number(e.target.value) })}
-              />
-            </label>
-            <div className="onboard-actions">
-              <button type="button" className="ghost-action" onClick={() => setStep(1)}>Back</button>
-              <button type="submit" disabled={busy}>{busy ? "Saving…" : "Save roof"}</button>
-            </div>
-          </form>
-        ) : null}
-
-        {step === 3 ? (
-          <div className="onboard-pane">
-            <div className="terms-preview">
-              <p>Royalties come from monetized solar only. Deployment waits for DRS readiness gates.</p>
-              <label className="terms-check" htmlFor="bo-terms">
-                <input
-                  id="bo-terms"
-                  type="checkbox"
-                  checked={acceptedTerms}
-                  onChange={(e) => setAcceptedTerms(e.target.checked)}
-                />
-                <span>I understand pilot terms are non-binding and payouts are simulated until settlement is live.</span>
-              </label>
-            </div>
-            <div className="onboard-actions">
-              <button type="button" className="ghost-action" onClick={() => setStep(2)}>Back</button>
-              <button type="button" disabled={!acceptedTerms || busy} onClick={finish}>{busy ? "Finishing…" : "Finish onboarding"}</button>
-            </div>
-          </div>
-        ) : null}
-
+        <div className="onboard-progress" aria-hidden="true">
+          <span style={{ width: `${progress}%` }} />
+        </div>
+        <div className="onboard-steps" aria-label="Onboarding progress">
+          {buildingOwnerSteps.map((label, index) => (
+            <span className={index <= step ? "active" : ""} key={label}>{label}</span>
+          ))}
+        </div>
+        <ActiveStep
+          form={form}
+          busy={busy}
+          buildingId={buildingId}
+          setForm={setForm}
+          goToStep={goToStep}
+          geocodeAddress={geocodeAddress}
+          saveBasics={saveBasics}
+          saveRoof={saveRoof}
+          finish={finish}
+        />
         {message ? <p className="form-note onboard-message" role="status">{message}</p> : null}
       </section>
     </main>
