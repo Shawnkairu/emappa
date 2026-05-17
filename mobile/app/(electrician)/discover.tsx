@@ -1,5 +1,5 @@
-import { InstallerJobsInboxScreen } from "../../components/proposed-flow/InstallerJobsInboxScreen";
+import { ElectricianDiscoverScreen } from "../../components/electrician/ElectricianDiscoverScreen";
 
-export default function ElectricianDiscoverScreen() {
-  return <InstallerJobsInboxScreen />;
+export default function ElectricianDiscoverRoute() {
+  return <ElectricianDiscoverScreen />;
 }
