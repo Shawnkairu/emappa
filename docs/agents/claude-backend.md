@@ -456,11 +456,10 @@ truth; the ledger is the human-readable index.
 - 2026-05-17 — P1.6.2a /pledges + /tokens/purchase + dual-write façade + parity audit script (ADR 0002 PR 1 endpoint half) — merged 20ec902 into agent/backend
 - 2026-05-17 — P1.6.3-6 four resident endpoints (load-profile, queue-position, queue-request, ats-state) — merged c149275 into agent/backend
 - 2026-05-17 — Coordinator: tag phase-P1-backend-done-2026-05-17 on agent/backend
+- 2026-05-17 — P1.6.7 post-review hardening: /pledges writes wallet_transaction row (parity with legacy /prepaid/commit) + AUDIT_REQUIRED_PATHS populated for /pledges, /pledges/{id}/cancel, /tokens/purchase, /residents/{id}/load-profile, /residents/{id}/queue-request (belt + suspenders against pydantic-drift) — merged ecac8b1 into agent/backend
 
 ### Active deferrals (queued backend tasks — do these before P2 closes)
-- **P1.6.7 post-review hardening** — two small follow-ups identified in P1 self-review:
-  1. Wire `/pledges` to also write a `wallet_transaction` row (parity with legacy `/prepaid/commit`)
-  2. Populate `AUDIT_REQUIRED_PATHS` with regex for `/pledges`, `/tokens/purchase`, `/residents/*` so middleware enforces reason BEFORE handler runs (belt + suspenders against drift)
+- *(none — P1.6.7 cleared 2026-05-17)*
 
 ### Coordinator notes outbound (to other agents)
 
@@ -484,8 +483,6 @@ other two agents. Each note is also mirrored in the target agent's
 - **P2.6.4** — `POST /homeowner/{id}/initiate-project`
 - **P2.6.5** — `GET /homeowner/{id}/lbrs`
 - **P2.6.6** — `homeowner_authority` table migration + model
-
-Plus the P1.6.7 hardening before phase-P2 backend tag.
 
 ---
 
