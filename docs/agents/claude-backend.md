@@ -501,6 +501,7 @@ truth; the ledger is the human-readable index.
 
 ### P2 (Homeowner backend — in progress)
 - 2026-05-17 — P2.6.6 homeowner_authority table + ORM + repo (Scenario C §6 step 5, A.7 case 1 gate); migration 0009 (round-trip clean); 20 new tests; reordered ahead of P2.6.1 because the endpoint hard-depends on this schema — merged aaee87b into agent/backend
+- 2026-05-17 — P2.6.1 POST /homeowner/{user_id}/authority-docs (Scenario C §6 step 5); pydantic ≥1-ownership-proof model_validator (422) + repo ValueError + DB CHECK (3-layer enforcement); scope guard (homeowner self-write OR admin); AUDIT_REQUIRED_PATHS enrolled for `^/homeowner/[^/]+/authority-docs$`; 11 new tests (266/266) — merged 5f7fee1 into agent/backend
 
 ### Active deferrals (queued backend tasks — do these before P2 closes)
 - *(none — P1.6.7 cleared 2026-05-17)*
@@ -521,7 +522,7 @@ other two agents. Each note is also mirrored in the target agent's
   ATS state. Use the same `?apartment_label=` query param convention.
 
 ### Next on your queue (per BUILD_PLAN)
-- **P2.6.1** — `POST /homeowner/{id}/authority-docs` (now unblocked — table landed in P2.6.6)
+- ~~**P2.6.1** — `POST /homeowner/{id}/authority-docs`~~ ✅ landed (5f7fee1)
 - **P2.6.2** — `POST /homeowner/{id}/utility-context`
 - **P2.6.3** — `POST /homeowner/{id}/site-preview`
 - **P2.6.4** — `POST /homeowner/{id}/initiate-project` (gates on `ha_repo.has_verified`)
