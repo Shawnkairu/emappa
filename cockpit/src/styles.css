@@ -233,6 +233,105 @@ button {
   font-weight: 900;
 }
 
+.agent-attribution {
+  display: grid;
+  gap: 14px;
+  border: 1px solid rgba(37, 99, 235, 0.18);
+  border-radius: 18px;
+  padding: 16px;
+  color: #1e293b;
+  background: #eff6ff;
+}
+
+.agent-attribution.compact {
+  gap: 10px;
+  padding: 12px;
+}
+
+.agent-attribution-header {
+  display: flex;
+  justify-content: space-between;
+  gap: 12px;
+  align-items: flex-start;
+}
+
+.agent-attribution-header span,
+.agent-evidence span,
+.agent-attribution dt {
+  display: block;
+  color: #64748b;
+  font-size: 11px;
+  font-weight: 900;
+  letter-spacing: 0.08em;
+  text-transform: uppercase;
+}
+
+.agent-attribution-header strong {
+  display: block;
+  margin-top: 4px;
+  overflow-wrap: anywhere;
+}
+
+.agent-status {
+  border-radius: 999px;
+  padding: 6px 9px;
+  color: #1d4ed8;
+  background: #dbeafe;
+  white-space: nowrap;
+}
+
+.agent-status.accepted {
+  color: #166534;
+  background: #dcfce7;
+}
+
+.agent-status.rejected {
+  color: #991b1b;
+  background: #fee2e2;
+}
+
+.agent-status.modified {
+  color: #92400e;
+  background: #fef3c7;
+}
+
+.agent-attribution dl {
+  display: grid;
+  grid-template-columns: minmax(120px, 0.4fr) 1fr;
+  gap: 10px;
+  margin: 0;
+}
+
+.agent-attribution dd {
+  margin: 4px 0 0;
+  font-weight: 900;
+}
+
+.agent-attribution p {
+  margin: 0;
+  color: #475569;
+  line-height: 1.5;
+}
+
+.agent-evidence {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 8px;
+  align-items: center;
+}
+
+.agent-evidence a,
+.agent-evidence em {
+  border-radius: 999px;
+  padding: 7px 10px;
+  color: #1d4ed8;
+  background: #ffffff;
+  font-size: 12px;
+  font-style: normal;
+  font-weight: 900;
+  text-decoration: none;
+}
+
 .topbar {
   display: flex;
   justify-content: space-between;
