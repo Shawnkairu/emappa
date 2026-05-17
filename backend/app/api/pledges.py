@@ -30,6 +30,7 @@ from ..models.user import User
 from ..repos import audit as audit_repo
 from ..repos import buildings as buildings_repo
 from ..repos import pledges as pledges_repo
+from ..repos import wallet as wallet_repo
 
 router = APIRouter(prefix="/pledges", tags=["pledges"])
 
@@ -90,6 +91,18 @@ async def create_pledge(
         user_id=user.id,
         amount_kes=body.amount_kes,
     )
+    # P1.6.7 parity with legacy /prepaid/commit: a pledge with a concrete
+    # amount records an outflow on the user's wallet ledger. Pledges with
+    # null amount (Scenario A §5: "intent without a number") write no
+    # wallet row — there is no legacy precedent to match.
+    if body.amount_kes is not None and body.amount_kes > 0:
+        await wallet_repo.record(
+            session,
+            user_id=user.id,
+            kind="pledge",
+            amount_kes=Decimal(f"-{body.amount_kes}"),
+            reference=f"Pledge to {building.name}",
+        )
     await audit_repo.log_mutation(
         session,
         actor_user_id=user.id,

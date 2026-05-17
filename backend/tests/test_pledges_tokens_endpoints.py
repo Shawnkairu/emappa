@@ -139,6 +139,9 @@ async def test_create_pledge_writes_audit_row(client):
 
 
 async def test_create_pledge_requires_reason(client):
+    # P1.6.7: middleware now enforces `reason` BEFORE the route handler runs
+    # (belt + suspenders against the pydantic min_length=1 in CreatePledgeBody).
+    # Net behavior: 400 from middleware instead of 422 from pydantic.
     bld = await _insert_building(stage="qualifying")
     token, _ = await _login_and_link(client, role="resident", building_id=bld)
     r = await client.post(
@@ -146,7 +149,55 @@ async def test_create_pledge_requires_reason(client):
         headers={"Authorization": f"Bearer {token}"},
         json={"buildingId": str(bld), "amountKes": 100},  # no reason
     )
-    assert r.status_code == 422  # pydantic min_length=1
+    assert r.status_code == 400
+    assert r.json()["detail"] == "audit_reason_required"
+
+
+async def test_create_pledge_writes_wallet_transaction_row(client):
+    # P1.6.7: parity with legacy /prepaid/commit — a pledge with a concrete
+    # amount records a negative wallet_transactions row of kind='pledge'.
+    bld = await _insert_building(stage="qualifying")
+    token, user_id = await _login_and_link(client, role="resident", building_id=bld)
+    r = await client.post(
+        "/pledges",
+        headers={"Authorization": f"Bearer {token}"},
+        json={"buildingId": str(bld), "amountKes": 450, "reason": "wallet parity test"},
+    )
+    assert r.status_code == 201, r.text
+    async with engine.begin() as conn:
+        row = (
+            await conn.execute(
+                text(
+                    "SELECT kind, amount_kes, reference FROM wallet_transactions "
+                    "WHERE user_id = :u ORDER BY at DESC LIMIT 1"
+                ),
+                {"u": user_id},
+            )
+        ).one()
+    assert row.kind == "pledge"
+    assert Decimal(row.amount_kes) == Decimal("-450")
+    assert "Pledge to" in row.reference
+
+
+async def test_null_amount_pledge_writes_no_wallet_transaction(client):
+    # Pledges of intent (null amount) intentionally write no wallet row —
+    # there is no legacy /prepaid/commit precedent for null amounts.
+    bld = await _insert_building(stage="qualifying")
+    token, user_id = await _login_and_link(client, role="resident", building_id=bld)
+    r = await client.post(
+        "/pledges",
+        headers={"Authorization": f"Bearer {token}"},
+        json={"buildingId": str(bld), "reason": "intent only"},
+    )
+    assert r.status_code == 201, r.text
+    async with engine.begin() as conn:
+        count = (
+            await conn.execute(
+                text("SELECT COUNT(*) FROM wallet_transactions WHERE user_id = :u"),
+                {"u": user_id},
+            )
+        ).scalar_one()
+    assert count == 0
 
 
 async def test_cancel_pledge_transitions_to_cancelled(client):
