@@ -42,7 +42,7 @@ function TabBarChromeBackground() {
 
 const hiddenTabRoutes: Partial<Record<StakeholderRole, string[]>> = {
   provider: ["inventory", "qualified-projects", "commit-capacity", "accept-terms", "deployment", "maintenance", "performance"],
-  financier: ["tranche-release"],
+  financier: ["_embedded"],
   building_owner: ["compare-today", "resident-roster", "approve-terms", "owner-account"],
 };
 

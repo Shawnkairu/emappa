@@ -8,8 +8,11 @@ import {
   formatKesShort,
   formatPercent,
 } from "./FinancierShared";
+import { useRouter } from "expo-router";
+import { Pressable } from "react-native";
 
 export function FinancierWalletScreen() {
+  const router = useRouter();
   return (
     <FinancierScreenShell
       section="Wallet"
@@ -27,7 +30,13 @@ export function FinancierWalletScreen() {
           <WalletRailCard building={primary} />
           <CashflowWaterfallCard building={primary} />
           <GateRailCard building={primary} />
-          <FinancierMilestoneBriefCard building={primary} />
+          <Pressable
+            accessibilityRole="button"
+            accessibilityLabel="Open payback scenarios"
+            onPress={() => router.push("/(financier)/_embedded/payback-scenarios")}
+          >
+            <FinancierMilestoneBriefCard building={primary} />
+          </Pressable>
           <FinancierBriefCard
             eyebrow="Ledger rules"
             title="No free energy payout."

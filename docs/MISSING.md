@@ -345,13 +345,13 @@
 | IA §Financier · Wallet (10 sections) | `mobile/app/(financier)/wallet.tsx` | PARTIAL | Available/Pending/Escrowed/Deployed/Cashflow/Projected/Payback/Fees/Risk/Statements — most sections missing |
 | IA §Financier · Profile | `mobile/app/(financier)/profile.tsx` | PARTIAL | KYC/KYB, eligibility tier, jurisdiction, risk profile, compliance, payout, tax |
 | Web parity | `website/src/screens/stakeholders/financier/*` | PARTIAL |
-| `tranche-release.tsx` route | extra | STALE — not in spec; likely belongs inside portfolio detail |
+| ~~`tranche-release.tsx` route~~ | extra | **Removed (P0.1.3)** — absorbed into `_embedded/payback-scenarios` |
 | Embedded · project-detail (deal room) | MISSING |
 | Embedded · drs-detail | MISSING |
 | Embedded · lbrs-detail | MISSING |
 | Embedded · statement-detail | MISSING |
 | Embedded · claim-detail | MISSING |
-| Embedded · payback-scenarios | MISSING |
+| Embedded · payback-scenarios | PARTIAL | `mobile/app/(financier)/_embedded/payback-scenarios.tsx` — scenarios + tranche/milestone release (ex-tab) |
 | Embedded · buyout-flow | MISSING |
 | Embedded · incident-detail | MISSING |
 | Embedded · dispute-flow | MISSING |
@@ -595,7 +595,7 @@ Most already enumerated above. Remaining cross-role universals:
 |---|---|---|---|
 | ~~`(electrician)/jobs.tsx` + `jobs-inbox.tsx`~~ | `(electrician)/projects.tsx` | Rename + consolidate | **DONE 2026-05-16** (P0.1.1) |
 | ~~`(electrician)/compliance.tsx` (tab)~~ | embedded inside Profile per IA-U7 | Move into Profile | **DONE 2026-05-16** (P0.1.2) |
-| `(financier)/tranche-release.tsx` (tab/route) | embedded inside portfolio detail | Move into Project Status detail | Pending (P0.1.3) |
+| ~~`(financier)/tranche-release.tsx` (tab/route)~~ | `_embedded/payback-scenarios` | Move into payback + release drill-in | **DONE (P0.1.3)** |
 | ~~`(admin)/home.tsx` (4th tab)~~ | only 3 tabs (Alerts/Projects/Profile) | Remove | **DONE 2026-05-16** (P0.1.4) |
 | ~~`mobile/components/installer/*` (whole folder)~~ | role is "Electrician" not "Installer" per §Role Naming | Rename folder + components | **DONE 2026-05-17** (P0.1.5) → `mobile/components/electrician/`; `Installer*` → `Electrician*`; deleted unused checklist/job-detail/maintenance scaffolds (P5 replacements) |
 | ~~`mobile/components/owner/*` (whole folder)~~ | role is "Building Owner" | Rename folder + components | **DONE 2026-05-17** (P0.1.6) → `mobile/components/building-owner/`; `Owner*` → `BuildingOwner*`; deleted duplicate home/earnings/list-building + `proposed-flow/Owner*` scaffolds |
