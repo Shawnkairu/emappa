@@ -1,5 +1,5 @@
 import { useRouter } from "expo-router";
-import { StyleSheet, Text, View } from "react-native";
+import { Pressable, StyleSheet, Text, View } from "react-native";
 import type { ProjectedBuilding } from "@emappa/shared";
 import { colors, spacing, typography } from "@emappa/ui";
 import {
@@ -103,14 +103,19 @@ function ResidentHomeContent({ building }: { building: ProjectedBuilding }) {
         </ResidentPrimaryButton>
       </View>
 
-      <ResidentMetricGrid
-        items={[
-          {
-            label: "Queue",
-            value: queue?.position != null ? `#${queue.position}` : "—",
-            detail: queue?.detail ?? "Capacity queue uses pilot evidence.",
-            tone: queueStatus === "activated" || queueStatus === "capacity_cleared" ? "good" : "warn",
-          },
+      <Pressable
+        onPress={() => router.push("/(resident)/_embedded/queue-detail")}
+        accessibilityRole="button"
+        accessibilityLabel="View capacity queue detail and priority factors"
+      >
+        <ResidentMetricGrid
+          items={[
+            {
+              label: "Queue",
+              value: queue?.position != null ? `#${queue.position}` : "—",
+              detail: queue?.detail ?? "Tap for priority factors (§6.3).",
+              tone: queueStatus === "activated" || queueStatus === "capacity_cleared" ? "good" : "warn",
+            },
           {
             label: "Coverage",
             value: formatPercent(view.solarCoverage),
@@ -130,7 +135,8 @@ function ResidentHomeContent({ building }: { building: ProjectedBuilding }) {
             tone: building.drs.reasons.length === 0 ? "good" : "warn",
           },
         ]}
-      />
+        />
+      </Pressable>
     </>
   );
 }

@@ -78,15 +78,15 @@ function EmbeddedBody({ kind, building }: { kind: ResidentEmbeddedKind; building
     );
   }
 
-  if (kind === "marketplace") {
+  if (kind === "queue-detail" || kind === "marketplace") {
     return (
       <Text style={styles.body}>
-        Ownership marketplace shows valuation basis and risk ranges. Returns are not guaranteed per Scenario A §8.6.
+        Open the dedicated embedded route for {TITLES[kind].toLowerCase()} — this shell remains for legacy deep links.
       </Text>
     );
   }
 
-  return <Text style={styles.body}>{TITLES[kind]} — priority factors, ATS machine, and alerts wire in P1.2 follow-ups.</Text>;
+  return <Text style={styles.body}>{TITLES[kind]} — ATS machine and alerts wire in P1.2 follow-ups.</Text>;
 }
 
 const styles = StyleSheet.create({
