@@ -359,7 +359,7 @@
 ### Components
 | Component | Target | Status |
 |---|---|---|
-| EligibilityBadge | `mobile/components/financier/EligibilityBadge.tsx` | MISSING |
+| EligibilityBadge (invest now/watch only/documents needed/limit reached/restricted jurisdiction) | `mobile/components/shared/EligibilityBadge.tsx` | BUILT |
 | EscrowStatusCard | `mobile/components/financier/EscrowStatusCard.tsx` | MISSING |
 | ReleaseSchedule | `mobile/components/financier/ReleaseSchedule.tsx` | MISSING |
 | EnergyFlowChart | `mobile/components/shared/EnergyFlowChart.tsx` | MISSING |
