@@ -78,7 +78,7 @@ function EmbeddedBody({ kind, building }: { kind: ResidentEmbeddedKind; building
     );
   }
 
-  if (kind === "queue-detail" || kind === "marketplace") {
+  if (kind === "queue-detail" || kind === "marketplace" || kind === "ats-detail") {
     return (
       <Text style={styles.body}>
         Open the dedicated embedded route for {TITLES[kind].toLowerCase()} — this shell remains for legacy deep links.
@@ -86,7 +86,7 @@ function EmbeddedBody({ kind, building }: { kind: ResidentEmbeddedKind; building
     );
   }
 
-  return <Text style={styles.body}>{TITLES[kind]} — ATS machine and alerts wire in P1.2 follow-ups.</Text>;
+  return <Text style={styles.body}>{TITLES[kind]} — deeper implementation wires in P1.2 follow-ups.</Text>;
 }
 
 const styles = StyleSheet.create({

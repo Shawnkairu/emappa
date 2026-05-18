@@ -20,6 +20,7 @@ import {
   deriveCapacityQueueStatus,
   isResidentLive,
 } from "./residentHomeState";
+import { deriveApartmentAtsState, deriveSupplySource } from "./residentAtsState";
 import { formatKes, formatKwh, formatPercent, residentView } from "./residentUtils";
 
 export function ResidentHomeScreen() {
@@ -43,6 +44,8 @@ function ResidentHomeContent({ building }: { building: ProjectedBuilding }) {
   const showBuyTokens = canResidentBuyTokens(building);
   const queue = building.roleViews.resident.capacityQueue;
   const estimatedKwh = Math.round(view.monthlySolarKwh / 30);
+  const atsState = deriveApartmentAtsState(building);
+  const supply = deriveSupplySource(building, atsState);
 
   return (
     <>
@@ -61,10 +64,13 @@ function ResidentHomeContent({ building }: { building: ProjectedBuilding }) {
             subtitle="Usable solar tokens only after capacity clearance and ATS verification at your PAYG meter."
             disabled={false}
           />
-          <LiveSupplyIndicator
-            atsState={showBuyTokens ? "activated" : "ats_installed_unverified"}
-            supply={showBuyTokens ? "solar" : "kplc"}
-          />
+          <Pressable
+            onPress={() => router.push("/(resident)/_embedded/ats-detail")}
+            accessibilityRole="button"
+            accessibilityLabel="View ATS status and activation path"
+          >
+            <LiveSupplyIndicator atsState={atsState} supply={supply} />
+          </Pressable>
           {showBuyTokens ? <TokenPurchaseCTA /> : null}
         </>
       ) : (
@@ -82,7 +88,21 @@ function ResidentHomeContent({ building }: { building: ProjectedBuilding }) {
                 Complete ATS activation steps before buying tokens. Token purchase stays hidden until your apartment is
                 capacity-cleared and verified.
               </Text>
+              <ResidentPrimaryButton
+                onPress={() => router.push("/(resident)/_embedded/ats-detail")}
+                accessibilityLabel="View ATS activation steps"
+              >
+                View ATS status
+              </ResidentPrimaryButton>
             </View>
+          ) : null}
+          {!live && availability !== "A5" ? (
+            <ResidentPrimaryButton
+              onPress={() => router.push("/(resident)/_embedded/ats-detail")}
+              accessibilityLabel="View apartment ATS path"
+            >
+              View ATS path
+            </ResidentPrimaryButton>
           ) : null}
           <ResidentPrimaryButton
             onPress={() => router.push("/(resident)/wallet")}

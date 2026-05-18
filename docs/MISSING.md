@@ -37,7 +37,7 @@
 | IA §Resident · Web parity (home/energy/wallet/profile) | `website/src/screens/stakeholders/resident/{home,energy,wallet,profile}.tsx` | PARTIAL | All four files exist; same gaps as mobile counterparts (IA-U10 parity). |
 | IA §Resident embedded · pledge-detail | `mobile/app/(resident)/_embedded/pledge-detail.tsx` | PARTIAL — shell shipped 2026-05-17 (P1.2.1–8 batch), deeper impl pending |
 | IA §Resident embedded · queue-detail | `mobile/app/(resident)/_embedded/queue-detail.tsx` | EXISTS — shipped 2026-05-17 P1.2.2 (priority factors §6.3) |
-| IA §Resident embedded · ats-detail | `mobile/app/(resident)/_embedded/ats-detail.tsx` | PARTIAL — shell shipped 2026-05-17 (P1.2.1–8 batch); deeper impl for 8-state machine §2.1 pending (P1.2.3) |
+| IA §Resident embedded · ats-detail | `mobile/app/(resident)/_embedded/ats-detail.tsx` | EXISTS — P1.2.3 2026-05-17; 8-state ATS machine §2.1 with activation path UI |
 | IA §Resident embedded · marketplace | `mobile/app/(resident)/_embedded/marketplace.tsx` | EXISTS — shipped 2026-05-17 P1.2.4 (§8.6 ownership marketplace) |
 | IA §Resident embedded · load-profile-edit | `mobile/app/(resident)/_embedded/load-profile-edit.tsx` | PARTIAL — shell shipped 2026-05-17 (P1.2.1–8 batch); L2/L3 capture impl pending (P1.2.5) |
 | IA §Resident embedded · drs-detail | `mobile/app/(resident)/_embedded/drs-detail.tsx` | PARTIAL — shell shipped 2026-05-17 (P1.2.1–8 batch); building-level DRS view pending (P1.2.6) |
