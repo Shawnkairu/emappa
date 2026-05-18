@@ -546,10 +546,11 @@ Note: also covered by §6 git-log grep, but mirrored here per ledger contract.
   All mutations require a non-empty `reason` field in the request body
   (CR-2). Use `<RequiresReason>`-equivalent pattern on mobile.
 
+- 2026-05-17 — P1.2.3 ats-detail deeper impl (8-state ATS machine §2.1) — merged into agent/mobile
+
 ### Next on your queue (per BUILD_PLAN, after deduping against §11 above)
 
-P1 mobile remaining (~12 tasks):
-- **P1.2.3** — ats-detail deeper impl atop the shell (see coordinator note)
+P1 mobile remaining (~11 tasks):
 - **P1.2.4** — marketplace deeper impl
 - **P1.2.5** — load-profile-edit deeper impl
 - **P1.2.6** — drs-detail deeper impl
